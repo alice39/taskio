@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "runtime_ext.h"
 #include "taskio/runtime/simple_runtime.h"
 
 struct task_node {
@@ -15,6 +16,12 @@ struct taskio_simple_runtime {
 
     size_t task_queue_len;
 };
+
+static inline struct taskio_join_handle
+_runtime_spawn(void* raw_runtime, struct taskio_task* task);
+
+static inline struct taskio_join_handle
+_runtime_spawn_blocking(void* raw_runtime, struct taskio_task* task);
 
 struct taskio_simple_runtime* taskio_simple_runtime_new() {
     struct taskio_simple_runtime* runtime =
@@ -63,7 +70,23 @@ taskio_simple_runtime_spawn(struct taskio_simple_runtime* runtime,
     return (struct taskio_join_handle){0};
 }
 
+struct taskio_join_handle
+taskio_simple_runtime_spawn_blocking(struct taskio_simple_runtime* runtime,
+                                     struct taskio_task* task) {
+    // FIXME: implement spawn blocking
+    (void)runtime;
+    (void)task;
+    return (struct taskio_join_handle){0};
+}
+
 void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
+    struct taskio_runtime runtime_ctx = {
+        .inner = runtime,
+        .spawn = _runtime_spawn,
+        .spawn_blocking = _runtime_spawn_blocking,
+    };
+    taskio_context_push_runtime(&runtime_ctx);
+
     size_t polled_len = 0;
 
     while (runtime->task_queue_head) {
@@ -106,4 +129,18 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
             }
         }
     }
+
+    taskio_context_pop_runtime();
+}
+
+static inline struct taskio_join_handle
+_runtime_spawn(void* raw_runtime, struct taskio_task* task) {
+    struct taskio_simple_runtime* runtime = raw_runtime;
+    return taskio_simple_runtime_spawn(runtime, task);
+}
+
+static inline struct taskio_join_handle
+_runtime_spawn_blocking(void* raw_runtime, struct taskio_task* task) {
+    struct taskio_simple_runtime* runtime = raw_runtime;
+    return taskio_simple_runtime_spawn_blocking(runtime, task);
 }
