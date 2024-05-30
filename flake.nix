@@ -21,6 +21,8 @@
             pkgs.gcc
             pkgs.clang
             pkgs.clang-tools
+            pkgs.valgrind
+
             pkgs.bashInteractive
           ];
         };
