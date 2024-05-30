@@ -17,9 +17,11 @@ struct taskio_simple_runtime {
     size_t task_queue_len;
 };
 
+// function for handling taskio_runtime#spawn
 static inline struct taskio_join_handle
 _runtime_spawn(void* raw_runtime, struct taskio_task* task);
 
+// function for handling taskio_runtime#spawn_blocking
 static inline struct taskio_join_handle
 _runtime_spawn_blocking(void* raw_runtime, struct taskio_task* task);
 
@@ -90,14 +92,21 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
     size_t polled_len = 0;
 
     while (runtime->task_queue_head) {
-        // sleep event loop
+        // once all tasks have been polled, event loop should sleep to avoid CPU
+        // consuming to be high
+
         if (polled_len >= runtime->task_queue_len) {
             usleep(1);
             polled_len = 0;
         }
 
         polled_len++;
-        // pop node out of queue
+
+        // tasks should be popped out of queue when polling them and if given
+        // task is still pending, then it will be pushed to the end of queue,
+        // but if task is already ready then it will free its memory and won't
+        // be added to queue ever again
+
         struct task_node* node = runtime->task_queue_head;
         runtime->task_queue_head = node->next;
         if (runtime->task_queue_head == NULL) {
