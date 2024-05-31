@@ -1,6 +1,9 @@
 #ifndef TASKIO_RUNTIME_EXT_GUARD_HEADER
 #define TASKIO_RUNTIME_EXT_GUARD_HEADER
 
+#include <stdbool.h>
+#include <stddef.h>
+
 #include "taskio/runtime/runtime.h"
 
 struct taskio_runtime {
@@ -9,6 +12,19 @@ struct taskio_runtime {
     struct taskio_join_handle (*spawn)(void* inner, struct taskio_task* task);
     struct taskio_join_handle (*spawn_blocking)(void* inner,
                                                 struct taskio_task* task);
+};
+
+struct task_node {
+    struct taskio_task* task;
+    struct task_node* next;
+};
+
+struct task_waker {
+    size_t ref_counter;
+    bool has_woken;
+
+    void* runtime;
+    struct task_node* node;
 };
 
 void taskio_context_push_runtime(struct taskio_runtime* runtime);

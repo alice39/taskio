@@ -4,7 +4,7 @@
 #include <ucontext.h>
 
 struct taskio_waker {
-    struct taskio_waker* (*clone)(void* data);
+    struct taskio_waker (*clone)(void* data);
     void (*wake)(void* data);
     void (*wake_by_ref)(void* data);
     void (*drop)(void* data);

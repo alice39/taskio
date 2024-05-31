@@ -6,10 +6,11 @@
 #include <time.h>
 
 #include "async.h"
+#include "runtime/runtime.h"
 #include "task/task.h"
 
 struct taskio_join_env {
-    struct taskio_task** tasks;
+    struct taskio_join_handle* handles;
     size_t len;
 };
 
