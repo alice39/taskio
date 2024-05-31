@@ -2,6 +2,7 @@
 #define TASKIO_ASYNC_GUARD_HEADER
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include <ucontext.h>
 
 #include "task/future.h"
@@ -14,6 +15,13 @@
 
 #define __TASKIO_TASK_OBJ __taskio_task
 #define __TASKIO_TASK_POL __taskio_task_poll
+
+struct taskio_drop_node {
+    void (*drop)(void* data);
+    void* data;
+
+    struct taskio_drop_node* next;
+};
 
 #define future_fn(T, name)                                                     \
     struct name##_future {                                                     \
@@ -34,6 +42,7 @@
     struct name##_env {                                                        \
         bool __polling;                                                        \
         bool __dropped;                                                        \
+        struct taskio_drop_node* __drop_node;                                  \
     };                                                                         \
                                                                                \
     future_fn(T, name)(__VA_ARGS__);                                           \
@@ -51,6 +60,15 @@
                                                                                \
     void name##_drop(struct name##_future* __TASKIO_FUTURE_OBJ) {              \
         __TASKIO_FUTURE_OBJ->env.__dropped = true;                             \
+        while (__TASKIO_FUTURE_OBJ->env.__drop_node) {                         \
+            __TASKIO_FUTURE_OBJ->env.__drop_node->drop(                        \
+                __TASKIO_FUTURE_OBJ->env.__drop_node->data);                   \
+                                                                               \
+            struct taskio_drop_node* next =                                    \
+                __TASKIO_FUTURE_OBJ->env.__drop_node->next;                    \
+            free(__TASKIO_FUTURE_OBJ->env.__drop_node);                        \
+            __TASKIO_FUTURE_OBJ->env.__drop_node = next;                       \
+        }                                                                      \
         if (__TASKIO_FUTURE_OBJ->env.__polling) {                              \
             swapcontext(&__TASKIO_FUTURE_OBJ->drop_ucp,                        \
                         &__TASKIO_FUTURE_OBJ->poll_ucp);                       \
@@ -65,6 +83,7 @@
                 {                                                              \
                     .__polling = false,                                        \
                     .__dropped = false,                                        \
+                    .__drop_node = NULL,                                       \
                 },                                                             \
         };                                                                     \
     }                                                                          \
@@ -114,5 +133,17 @@
         *__TASKIO_FUTURE_VAL = value;                                          \
     }                                                                          \
     return;
+
+#define taskio_defer_fn(fn, data)                                              \
+    {                                                                          \
+        struct taskio_drop_node* __taskio_drop_node =                          \
+            malloc(sizeof(struct taskio_drop_node));                           \
+        __taskio_drop_node->drop = fn;                                         \
+        __taskio_drop_node->data = data;                                       \
+        __taskio_drop_node->next = __TASKIO_FUTURE_OBJ->env.__drop_node;       \
+        __TASKIO_FUTURE_OBJ->env.__drop_node = __taskio_drop_node;             \
+    }
+
+#define taskio_defer(data) taskio_defer_fn(free, data)
 
 #endif // TASKIO_ASYNC_GUARD_HEADER
