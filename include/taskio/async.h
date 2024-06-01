@@ -134,12 +134,12 @@ struct taskio_drop_node {
     }                                                                          \
     return;
 
-#define taskio_defer_fn(fn, data)                                              \
+#define taskio_defer_fn(fn, value)                                             \
     {                                                                          \
         struct taskio_drop_node* __taskio_drop_node =                          \
             malloc(sizeof(struct taskio_drop_node));                           \
-        __taskio_drop_node->drop = fn;                                         \
-        __taskio_drop_node->data = data;                                       \
+        __taskio_drop_node->drop = (void (*)(void*))fn;                        \
+        __taskio_drop_node->data = value;                                      \
         __taskio_drop_node->next = __TASKIO_FUTURE_OBJ->env.__drop_node;       \
         __TASKIO_FUTURE_OBJ->env.__drop_node = __taskio_drop_node;             \
     }
