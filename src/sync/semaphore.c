@@ -9,6 +9,7 @@
 #include "taskio/task/future.h"
 
 struct semaphore_node {
+    atomic_size_t counter;
     struct taskio_waker waker;
 
     struct semaphore_node* back;
@@ -59,7 +60,9 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
     while (node) {
         struct semaphore_node* next = node->next;
         node->waker.drop(node->waker.data);
-        free(node);
+        if (atomic_fetch_sub(&node->counter, 1) == 1) {
+            free(node);
+        }
         node = next;
     }
 
@@ -127,7 +130,9 @@ void taskio_semaphore_signal(struct taskio_semaphore* semaphore) {
 
     if (node) {
         node->waker.wake(node->waker.data);
-        free(node);
+        if (atomic_fetch_sub(&node->counter, 1) == 1) {
+            free(node);
+        }
     }
 }
 
@@ -151,6 +156,7 @@ taskio_semaphore_wait_poll(struct taskio_semaphore_wait_future* future,
 
     if (current_value == 0) {
         struct semaphore_node* node = malloc(sizeof(struct semaphore_node));
+        node->counter = 2;
         node->waker = ctx->waker;
         node->back = semaphore->wake_queue_tail;
         node->next = NULL;
@@ -171,6 +177,10 @@ taskio_semaphore_wait_poll(struct taskio_semaphore_wait_future* future,
 
         *poll = TASKIO_FUTURE_PENDING;
         swapcontext(future->poll_ucp, future->exec_ucp);
+
+        if (atomic_fetch_sub(&node->counter, 1) == 1) {
+            free(node);
+        }
     }
 
     *poll = TASKIO_FUTURE_READY;
@@ -220,7 +230,9 @@ taskio_semaphore_wait_drop(struct taskio_semaphore_wait_future* future) {
 
     pthread_mutex_unlock(&future->env.semaphore->wake_guard);
 
-    free(current);
+    if (atomic_fetch_sub(&current->counter, 1) == 1) {
+        free(current);
+    }
 }
 
 static void taskio_semaphore_timedwait_drop(
