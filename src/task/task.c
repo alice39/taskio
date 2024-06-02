@@ -5,6 +5,10 @@
 
 #include "taskio/task/task.h"
 
+#ifdef USE_VALGRIND
+#include <valgrind/valgrind.h>
+#endif
+
 #define STACK_SIZE (16 * 1024)
 
 struct taskio_task {
@@ -17,6 +21,9 @@ struct taskio_task {
     ucontext_t local_ucp;
     ucontext_t* future_exec_ucp;
 
+#ifdef USE_VALGRIND
+    int stack_id;
+#endif
     uint8_t stack[STACK_SIZE];
 };
 
@@ -31,6 +38,11 @@ struct taskio_task*(taskio_task_new)(struct taskio_future* future,
         task->owned = true;
         task->polling = false;
         task->should_drop = true;
+
+#ifdef USE_VALGRIND
+        task->stack_id =
+            VALGRIND_STACK_REGISTER(task->stack, task->stack + STACK_SIZE);
+#endif
 
         memcpy(task->future, future, bytes);
 
@@ -80,6 +92,10 @@ void taskio_task_drop(struct taskio_task* task) {
                     1, task->future);
         swapcontext(task->future->exec_ucp, &task->future->drop_ucp);
     }
+
+#ifdef USE_VALGRIND
+    VALGRIND_STACK_DEREGISTER(task->stack_id);
+#endif
 
     if (task->owned) {
         free(task->future);
