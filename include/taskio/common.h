@@ -11,6 +11,7 @@
 
 struct taskio_join_env {
     struct taskio_join_handle* handles;
+    size_t current;
     size_t len;
 };
 

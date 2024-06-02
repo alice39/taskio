@@ -12,10 +12,11 @@ static inline void taskio_join_poll(struct taskio_join_future* future,
     struct taskio_join_env* env = &future->env;
     struct taskio_join_handle* handles = env->handles;
 
-    size_t i = 0;
-    while (i < env->len) {
-        if (handles[i].is_finished(&handles[i])) {
-            i++;
+    while (env->current < env->len) {
+        struct taskio_join_handle* handle = &handles[env->current];
+        if (handle->is_finished(handle)) {
+            taskio_join_handle_drop(handle);
+            env->current++;
         } else {
             // FIXME: Wake when it's needed to.
             *poll = TASKIO_FUTURE_PENDING;
@@ -29,7 +30,7 @@ static inline void taskio_join_poll(struct taskio_join_future* future,
 }
 
 static inline void taskio_join_drop(struct taskio_join_future* future) {
-    for (size_t i = 0; i < future->env.len; i++) {
+    for (size_t i = future->env.current; i < future->env.len; i++) {
         struct taskio_join_handle* handle = &future->env.handles[i];
         handle->abort(handle);
         taskio_join_handle_drop(handle);
@@ -58,6 +59,7 @@ struct taskio_join_future(taskio_join)(size_t len, ...) {
         .env =
             {
                 .handles = handles,
+                .current = 0,
                 .len = len,
             },
     };
