@@ -22,7 +22,7 @@ static inline void taskio_sleep_poll(struct taskio_sleep_future* future,
 
         *poll = TASKIO_FUTURE_PENDING;
         ctx->waker.wake(ctx->waker.data);
-        swapcontext(&future->poll_ucp, future->exec_ucp);
+        swapcontext(future->poll_ucp, future->exec_ucp);
     }
 
     *poll = TASKIO_FUTURE_READY;

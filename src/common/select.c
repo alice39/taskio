@@ -43,7 +43,7 @@ static inline void taskio_select_poll(struct taskio_select_future* future,
 
         *poll = TASKIO_FUTURE_PENDING;
         ctx->waker.wake(ctx->waker.data);
-        swapcontext(&future->poll_ucp, future->exec_ucp);
+        swapcontext(future->poll_ucp, future->exec_ucp);
     }
 
     // TODO: Use a RNG instead of PRNG
@@ -76,7 +76,7 @@ static inline void taskio_select_poll(struct taskio_select_future* future,
 
             *poll = TASKIO_FUTURE_PENDING;
             ctx->waker.wake(ctx->waker.data);
-            swapcontext(&future->poll_ucp, future->exec_ucp);
+            swapcontext(future->poll_ucp, future->exec_ucp);
         }
 
         taskio_join_handle_drop(handle);

@@ -30,8 +30,8 @@ struct taskio_drop_node {
         void (*drop)(struct name##_future*);                                   \
                                                                                \
         ucontext_t* exec_ucp;                                                  \
-        ucontext_t poll_ucp;                                                   \
-        ucontext_t drop_ucp;                                                   \
+        ucontext_t* poll_ucp;                                                  \
+        ucontext_t* drop_ucp;                                                  \
                                                                                \
         struct name##_env env;                                                 \
     };                                                                         \
@@ -79,8 +79,8 @@ struct taskio_drop_node {
             __TASKIO_FUTURE_OBJ->env.__drop_node = next;                       \
         }                                                                      \
         if (__TASKIO_FUTURE_OBJ->env.__polling) {                              \
-            swapcontext(&__TASKIO_FUTURE_OBJ->drop_ucp,                        \
-                        &__TASKIO_FUTURE_OBJ->poll_ucp);                       \
+            swapcontext(__TASKIO_FUTURE_OBJ->drop_ucp,                         \
+                        __TASKIO_FUTURE_OBJ->poll_ucp);                        \
         }                                                                      \
     }                                                                          \
                                                                                \
@@ -109,7 +109,7 @@ struct taskio_drop_node {
                              &__TASKIO_TASK_POL, out);                         \
                                                                                \
             if (__TASKIO_TASK_POL == TASKIO_FUTURE_PENDING) {                  \
-                swapcontext(&__TASKIO_FUTURE_OBJ->poll_ucp,                    \
+                swapcontext(__TASKIO_FUTURE_OBJ->poll_ucp,                     \
                             __TASKIO_FUTURE_OBJ->exec_ucp);                    \
             } else if (__TASKIO_TASK_POL == TASKIO_FUTURE_READY) {             \
                 break;                                                         \
@@ -117,8 +117,8 @@ struct taskio_drop_node {
                                                                                \
             if (__TASKIO_FUTURE_OBJ->env.__dropped) {                          \
                 taskio_task_drop(__TASKIO_TASK_OBJ);                           \
-                swapcontext(&__TASKIO_FUTURE_OBJ->poll_ucp,                    \
-                            &__TASKIO_FUTURE_OBJ->drop_ucp);                   \
+                swapcontext(__TASKIO_FUTURE_OBJ->poll_ucp,                     \
+                            __TASKIO_FUTURE_OBJ->drop_ucp);                    \
             }                                                                  \
         }                                                                      \
                                                                                \

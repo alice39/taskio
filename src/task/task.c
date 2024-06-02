@@ -9,7 +9,7 @@
 #include <valgrind/valgrind.h>
 #endif
 
-#define STACK_SIZE (16 * 1024)
+#define STACK_SIZE (2 * 1024)
 
 struct taskio_task {
     struct taskio_future* future;
@@ -18,8 +18,9 @@ struct taskio_task {
     bool polling;
     bool should_drop;
 
-    ucontext_t local_ucp;
-    ucontext_t* future_exec_ucp;
+    ucontext_t exec_ucp;
+    ucontext_t poll_ucp;
+    ucontext_t drop_ucp;
 
 #ifdef USE_VALGRIND
     int stack_id;
@@ -46,8 +47,9 @@ struct taskio_task*(taskio_task_new)(struct taskio_future* future,
 
         memcpy(task->future, future, bytes);
 
-        task->future_exec_ucp = NULL;
-        pinned_future->exec_ucp = &task->local_ucp;
+        pinned_future->exec_ucp = &task->exec_ucp;
+        pinned_future->poll_ucp = &task->poll_ucp;
+        pinned_future->drop_ucp = &task->drop_ucp;
     } else {
         free(task);
         free(pinned_future);
@@ -68,8 +70,9 @@ struct taskio_task* taskio_task_ref(struct taskio_future* future) {
         task->polling = false;
         task->should_drop = true;
 
-        task->future_exec_ucp = future->exec_ucp;
-        task->future->exec_ucp = &task->local_ucp;
+        task->future->exec_ucp = &task->exec_ucp;
+        task->future->poll_ucp = &task->poll_ucp;
+        task->future->drop_ucp = &task->drop_ucp;
     } else {
         free(task);
 
@@ -81,16 +84,16 @@ struct taskio_task* taskio_task_ref(struct taskio_future* future) {
 
 void taskio_task_drop(struct taskio_task* task) {
     if (task->should_drop) {
-        getcontext(&task->future->drop_ucp);
+        getcontext(&task->drop_ucp);
 
-        task->future->drop_ucp.uc_stack.ss_sp = task->stack;
-        task->future->drop_ucp.uc_stack.ss_size = STACK_SIZE;
-        task->future->drop_ucp.uc_stack.ss_flags = 0;
-        task->future->drop_ucp.uc_link = task->future->exec_ucp;
+        task->drop_ucp.uc_stack.ss_sp = task->stack;
+        task->drop_ucp.uc_stack.ss_size = STACK_SIZE;
+        task->drop_ucp.uc_stack.ss_flags = 0;
+        task->drop_ucp.uc_link = task->future->exec_ucp;
 
-        makecontext(&task->future->drop_ucp, (void (*)(void))task->future->drop,
-                    1, task->future);
-        swapcontext(task->future->exec_ucp, &task->future->drop_ucp);
+        makecontext(&task->drop_ucp, (void (*)(void))task->future->drop, 1,
+                    task->future);
+        swapcontext(&task->exec_ucp, &task->drop_ucp);
     }
 
 #ifdef USE_VALGRIND
@@ -107,18 +110,18 @@ void taskio_task_poll(struct taskio_task* task,
                       struct taskio_future_context* ctx,
                       enum taskio_future_poll* poll, void* value) {
     if (!task->polling) {
-        getcontext(&task->future->poll_ucp);
+        getcontext(&task->poll_ucp);
 
-        task->future->poll_ucp.uc_stack.ss_sp = task->stack;
-        task->future->poll_ucp.uc_stack.ss_size = STACK_SIZE;
-        task->future->poll_ucp.uc_stack.ss_flags = 0;
-        task->future->poll_ucp.uc_link = task->future->exec_ucp;
+        task->poll_ucp.uc_stack.ss_sp = task->stack;
+        task->poll_ucp.uc_stack.ss_size = STACK_SIZE;
+        task->poll_ucp.uc_stack.ss_flags = 0;
+        task->poll_ucp.uc_link = task->future->exec_ucp;
 
-        makecontext(&task->future->poll_ucp, (void (*)(void))task->future->poll,
-                    4, task->future, ctx, poll, value);
+        makecontext(&task->poll_ucp, (void (*)(void))task->future->poll, 4,
+                    task->future, ctx, poll, value);
     }
 
-    swapcontext(task->future->exec_ucp, &task->future->poll_ucp);
+    swapcontext(&task->exec_ucp, &task->poll_ucp);
 
     task->polling = *poll == TASKIO_FUTURE_PENDING;
     task->should_drop = *poll == TASKIO_FUTURE_PENDING;

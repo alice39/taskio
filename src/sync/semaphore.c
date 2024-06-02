@@ -170,7 +170,7 @@ taskio_semaphore_wait_poll(struct taskio_semaphore_wait_future* future,
         pthread_mutex_unlock(&semaphore->wake_guard);
 
         *poll = TASKIO_FUTURE_PENDING;
-        swapcontext(&future->poll_ucp, future->exec_ucp);
+        swapcontext(future->poll_ucp, future->exec_ucp);
     }
 
     *poll = TASKIO_FUTURE_READY;
@@ -187,7 +187,7 @@ static void taskio_semaphore_timedwait_poll(
         if (*poll == TASKIO_FUTURE_READY) {
             break;
         } else {
-            swapcontext(&future->poll_ucp, future->exec_ucp);
+            swapcontext(future->poll_ucp, future->exec_ucp);
         }
     }
 

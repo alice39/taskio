@@ -21,7 +21,7 @@ static inline void taskio_join_poll(struct taskio_join_future* future,
             // FIXME: Wake when it's needed to.
             *poll = TASKIO_FUTURE_PENDING;
             ctx->waker.wake(ctx->waker.data);
-            swapcontext(&future->poll_ucp, future->exec_ucp);
+            swapcontext(future->poll_ucp, future->exec_ucp);
         }
     }
 

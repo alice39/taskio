@@ -27,8 +27,8 @@ struct taskio_future {
     void (*drop)(void* future);
 
     ucontext_t* exec_ucp;
-    ucontext_t poll_ucp;
-    ucontext_t drop_ucp;
+    ucontext_t* poll_ucp;
+    ucontext_t* drop_ucp;
 };
 
 #endif // TASKIO_FUTURE_GUARD_HEADER
