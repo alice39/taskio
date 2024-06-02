@@ -56,6 +56,15 @@ struct taskio_drop_node {
         (void)__TASKIO_FUTURE_VAL;                                             \
         block;                                                                 \
         *__TASKIO_FUTURE_POL = TASKIO_FUTURE_READY;                            \
+        while (__TASKIO_FUTURE_OBJ->env.__drop_node) {                         \
+            __TASKIO_FUTURE_OBJ->env.__drop_node->drop(                        \
+                __TASKIO_FUTURE_OBJ->env.__drop_node->data);                   \
+                                                                               \
+            struct taskio_drop_node* next =                                    \
+                __TASKIO_FUTURE_OBJ->env.__drop_node->next;                    \
+            free(__TASKIO_FUTURE_OBJ->env.__drop_node);                        \
+            __TASKIO_FUTURE_OBJ->env.__drop_node = next;                       \
+        }                                                                      \
     }                                                                          \
                                                                                \
     void name##_drop(struct name##_future* __TASKIO_FUTURE_OBJ) {              \

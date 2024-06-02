@@ -21,6 +21,10 @@ struct taskio_simple_runtime {
 
 static inline void _runtime_resume(struct taskio_simple_runtime* runtime);
 
+static inline void _handle_abort(struct taskio_join_handle* handle);
+static inline bool _handle_is_aborted(struct taskio_join_handle* handle);
+static inline bool _handle_is_finished(struct taskio_join_handle* handle);
+
 // function for handling taskio_runtime#spawn
 static inline struct taskio_join_handle
 _runtime_spawn(void* raw_runtime, struct taskio_task* task);
@@ -61,14 +65,13 @@ struct taskio_simple_runtime* taskio_simple_runtime_new() {
 }
 
 void taskio_simple_runtime_drop(struct taskio_simple_runtime* runtime) {
-    struct task_node* node = runtime->ready_queue_head;
+    struct task_node* ready_node = runtime->ready_queue_head;
+    while (ready_node) {
+        taskio_task_drop(ready_node->task);
 
-    while (node) {
-        taskio_task_drop(node->task);
-
-        struct task_node* next = node->next;
-        free(node);
-        node = next;
+        struct task_node* next = ready_node->next;
+        taskio_task_node_drop(ready_node);
+        ready_node = next;
     }
 
     free(runtime);
@@ -78,6 +81,10 @@ struct taskio_join_handle
 taskio_simple_runtime_spawn(struct taskio_simple_runtime* runtime,
                             struct taskio_task* task) {
     struct task_node* node = malloc(sizeof(struct task_node));
+    // starts from 2 because it's used in ready queue and join handle
+    node->counter = 2;
+    node->aborted = false;
+    node->finished = false;
     node->task = task;
     node->next = NULL;
 
@@ -94,7 +101,12 @@ taskio_simple_runtime_spawn(struct taskio_simple_runtime* runtime,
 
     runtime->ready_queue_len++;
 
-    return (struct taskio_join_handle){0};
+    return (struct taskio_join_handle){
+        .abort = _handle_abort,
+        .is_aborted = _handle_is_aborted,
+        .is_finished = _handle_is_finished,
+        .task = node,
+    };
 }
 
 struct taskio_join_handle
@@ -148,6 +160,12 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
         node->next = NULL;
 
         runtime->ready_queue_len--;
+
+        if (node->aborted) {
+            taskio_task_node_drop(node);
+            continue;
+        }
+
         runtime->sleep_queue_len++;
 
         struct task_waker* waker = malloc(sizeof(struct task_waker));
@@ -173,8 +191,8 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
         switch (poll_result) {
             case TASKIO_FUTURE_READY: {
                 context.waker.drop(context.waker.data);
-                taskio_task_drop(node->task);
-                free(node);
+                node->finished = true;
+                taskio_task_node_drop(node);
                 break;
             }
             case TASKIO_FUTURE_PENDING: {
@@ -194,6 +212,21 @@ static inline void _runtime_resume(struct taskio_simple_runtime* runtime) {
 
     runtime->is_wating_wake = false;
     sem_post(&runtime->on_wake);
+}
+
+static inline void _handle_abort(struct taskio_join_handle* handle) {
+    struct task_node* task_node = handle->task;
+    task_node->aborted = true;
+}
+
+static inline bool _handle_is_aborted(struct taskio_join_handle* handle) {
+    struct task_node* node = handle->task;
+    return node->aborted;
+}
+
+static inline bool _handle_is_finished(struct taskio_join_handle* handle) {
+    struct task_node* node = handle->task;
+    return node->finished;
 }
 
 static inline struct taskio_join_handle
@@ -237,15 +270,20 @@ static inline void _waker_wake_by_ref(void* data) {
     struct task_waker* waker = data;
     struct taskio_simple_runtime* runtime = waker->runtime;
 
-    runtime->ready_queue_len++;
     runtime->sleep_queue_len--;
 
-    if (runtime->ready_queue_head == NULL) {
-        runtime->ready_queue_head = waker->node;
-        runtime->ready_queue_tail = waker->node;
+    if (waker->node->aborted) {
+        taskio_task_node_drop(waker->node);
     } else {
-        runtime->ready_queue_tail->next = waker->node;
-        runtime->ready_queue_tail = waker->node;
+        runtime->ready_queue_len++;
+
+        if (runtime->ready_queue_head == NULL) {
+            runtime->ready_queue_head = waker->node;
+            runtime->ready_queue_tail = waker->node;
+        } else {
+            runtime->ready_queue_tail->next = waker->node;
+            runtime->ready_queue_tail = waker->node;
+        }
     }
 
     _runtime_resume(runtime);

@@ -15,6 +15,11 @@ struct taskio_runtime {
 };
 
 struct task_node {
+    size_t counter;
+
+    bool aborted;
+    bool finished;
+
     struct taskio_task* task;
     struct task_node* next;
 };
@@ -26,6 +31,9 @@ struct task_waker {
     void* runtime;
     struct task_node* node;
 };
+
+struct task_node* taskio_task_node_clone(struct task_node* node);
+void taskio_task_node_drop(struct task_node* node);
 
 void taskio_context_push_runtime(struct taskio_runtime* runtime);
 void taskio_context_pop_runtime();

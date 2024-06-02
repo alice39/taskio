@@ -13,7 +13,9 @@
         struct taskio_simple_runtime* rt = taskio_simple_runtime_new();        \
                                                                                \
         struct __taskio_async_main_future future = __taskio_async_main();      \
-        taskio_simple_runtime_spawn(rt, taskio_task_new(future));              \
+        struct taskio_join_handle handle =                                     \
+            taskio_simple_runtime_spawn(rt, taskio_task_new(future));          \
+        taskio_join_handle_drop(&handle);                                      \
                                                                                \
         taskio_simple_runtime_run(rt);                                         \
         taskio_simple_runtime_drop(rt);                                        \

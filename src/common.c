@@ -72,7 +72,7 @@ static inline void taskio_join_poll(struct taskio_join_future* future,
 
     size_t i = 0;
     while (i < env->len) {
-        if (handles[i].is_finished(handles[i].task)) {
+        if (handles[i].is_finished(&handles[i])) {
             i++;
         } else {
             // FIXME: Wake when it's needed to.
@@ -112,7 +112,8 @@ static inline void async_sleep_poll(struct taskio_sleep_future* future,
 static inline void taskio_join_drop(struct taskio_join_future* future) {
     for (size_t i = 0; i < future->env.len; i++) {
         struct taskio_join_handle* handle = &future->env.handles[i];
-        handle->abort(handle->task);
+        handle->abort(handle);
+        taskio_join_handle_drop(handle);
     }
 
     free(future->env.handles);
