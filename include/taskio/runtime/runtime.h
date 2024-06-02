@@ -40,6 +40,8 @@ struct taskio_join_handle {
 
     bool (*is_aborted)(struct taskio_join_handle*);
     bool (*is_finished)(struct taskio_join_handle*);
+    // check if future has been destroyed by runtime
+    bool (*is_destroyed)(struct taskio_join_handle*);
 
     void* task;
 };

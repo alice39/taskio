@@ -19,6 +19,7 @@ struct task_node {
 
     bool aborted;
     bool finished;
+    bool destroyed;
 
     struct taskio_task* task;
     struct task_node* next;

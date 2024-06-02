@@ -24,6 +24,7 @@ static inline void _runtime_resume(struct taskio_simple_runtime* runtime);
 static inline void _handle_abort(struct taskio_join_handle* handle);
 static inline bool _handle_is_aborted(struct taskio_join_handle* handle);
 static inline bool _handle_is_finished(struct taskio_join_handle* handle);
+static inline bool _handle_is_destroyed(struct taskio_join_handle* handle);
 
 // function for handling taskio_runtime#spawn
 static inline struct taskio_join_handle
@@ -70,6 +71,7 @@ void taskio_simple_runtime_drop(struct taskio_simple_runtime* runtime) {
         taskio_task_drop(ready_node->task);
 
         struct task_node* next = ready_node->next;
+        next->destroyed = true;
         taskio_task_node_drop(ready_node);
         ready_node = next;
     }
@@ -85,6 +87,7 @@ taskio_simple_runtime_spawn(struct taskio_simple_runtime* runtime,
     node->counter = 2;
     node->aborted = false;
     node->finished = false;
+    node->destroyed = false;
     node->task = task;
     node->next = NULL;
 
@@ -105,6 +108,7 @@ taskio_simple_runtime_spawn(struct taskio_simple_runtime* runtime,
         .abort = _handle_abort,
         .is_aborted = _handle_is_aborted,
         .is_finished = _handle_is_finished,
+        .is_destroyed = _handle_is_destroyed,
         .task = node,
     };
 }
@@ -162,6 +166,7 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
         runtime->ready_queue_len--;
 
         if (node->aborted) {
+            node->destroyed = true;
             taskio_task_node_drop(node);
             continue;
         }
@@ -192,6 +197,7 @@ void taskio_simple_runtime_run(struct taskio_simple_runtime* runtime) {
             case TASKIO_FUTURE_READY: {
                 context.waker.drop(context.waker.data);
                 node->finished = true;
+                node->destroyed = true;
                 taskio_task_node_drop(node);
                 break;
             }
@@ -227,6 +233,11 @@ static inline bool _handle_is_aborted(struct taskio_join_handle* handle) {
 static inline bool _handle_is_finished(struct taskio_join_handle* handle) {
     struct task_node* node = handle->task;
     return node->finished;
+}
+
+static inline bool _handle_is_destroyed(struct taskio_join_handle* handle) {
+    struct task_node* node = handle->task;
+    return node->destroyed;
 }
 
 static inline struct taskio_join_handle
@@ -273,6 +284,7 @@ static inline void _waker_wake_by_ref(void* data) {
     runtime->sleep_queue_len--;
 
     if (waker->node->aborted) {
+        waker->node->destroyed = true;
         taskio_task_node_drop(waker->node);
     } else {
         runtime->ready_queue_len++;

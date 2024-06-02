@@ -56,9 +56,7 @@ static inline void taskio_select_poll(struct taskio_select_future* future,
         random_choice--;
     }
 
-    // FIXME: return the value of finished future
-    *poll = TASKIO_FUTURE_READY;
-    *out = finished_list->index;
+    size_t index_result = finished_list->index;
 
     struct select_node* node = finished_list;
     while (node) {
@@ -68,10 +66,25 @@ static inline void taskio_select_poll(struct taskio_select_future* future,
     }
 
     for (size_t i = 0; i < env->len; i++) {
-        handles[i].abort(&handles[i]);
-        taskio_join_handle_drop(&handles[i]);
+        struct taskio_join_handle* handle = &handles[i];
+        handle->abort(handle);
+
+        while (1) {
+            if (handle->is_destroyed(handle)) {
+                break;
+            }
+
+            *poll = TASKIO_FUTURE_PENDING;
+            ctx->waker.wake(ctx->waker.data);
+            swapcontext(&future->poll_ucp, future->exec_ucp);
+        }
+
+        taskio_join_handle_drop(handle);
     }
 
+    // FIXME: return the value of finished future
+    *poll = TASKIO_FUTURE_READY;
+    *out = index_result;
     free(handles);
 }
 
