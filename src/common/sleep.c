@@ -12,11 +12,13 @@ static inline void taskio_sleep_poll(struct taskio_sleep_future* future,
     struct timespec current;
     struct timespec* deadline = &future->env.deadline;
 
+    uint64_t deadline_time = deadline->tv_sec * 1000000000 + deadline->tv_nsec;
+
     while (1) {
         timespec_get(&current, TIME_UTC);
+        uint64_t current_time = current.tv_sec * 1000000000 + current.tv_nsec;
 
-        if (current.tv_sec >= deadline->tv_sec &&
-            current.tv_nsec >= deadline->tv_nsec) {
+        if (deadline_time <= current_time) {
             break;
         }
 
