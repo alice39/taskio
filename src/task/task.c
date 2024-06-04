@@ -14,7 +14,6 @@
 struct taskio_task {
     struct taskio_future* future;
 
-    bool owned;
     bool polling;
     bool should_drop;
 
@@ -26,17 +25,16 @@ struct taskio_task {
     int stack_id;
 #endif
     uint8_t stack[STACK_SIZE];
+    uint8_t pinned_future[1];
 };
 
 struct taskio_task*(taskio_task_new)(struct taskio_future* future,
                                      size_t bytes) {
-    struct taskio_task* task = malloc(sizeof(struct taskio_task));
-    struct taskio_future* pinned_future = malloc(bytes);
+    struct taskio_task* task = malloc(sizeof(struct taskio_task) + bytes);
 
-    if (task && pinned_future) {
-        task->future = pinned_future;
+    if (task) {
+        task->future = (struct taskio_future*)task->pinned_future;
 
-        task->owned = true;
         task->polling = false;
         task->should_drop = true;
 
@@ -47,14 +45,9 @@ struct taskio_task*(taskio_task_new)(struct taskio_future* future,
 
         memcpy(task->future, future, bytes);
 
-        pinned_future->exec_ucp = &task->exec_ucp;
-        pinned_future->poll_ucp = &task->poll_ucp;
-        pinned_future->drop_ucp = &task->drop_ucp;
-    } else {
-        free(task);
-        free(pinned_future);
-
-        task = NULL;
+        task->future->exec_ucp = &task->exec_ucp;
+        task->future->poll_ucp = &task->poll_ucp;
+        task->future->drop_ucp = &task->drop_ucp;
     }
 
     return task;
@@ -66,17 +59,12 @@ struct taskio_task* taskio_task_ref(struct taskio_future* future) {
     if (task) {
         task->future = future;
 
-        task->owned = false;
         task->polling = false;
         task->should_drop = true;
 
         task->future->exec_ucp = &task->exec_ucp;
         task->future->poll_ucp = &task->poll_ucp;
         task->future->drop_ucp = &task->drop_ucp;
-    } else {
-        free(task);
-
-        task = NULL;
     }
 
     return task;
@@ -100,9 +88,6 @@ void taskio_task_drop(struct taskio_task* task) {
     VALGRIND_STACK_DEREGISTER(task->stack_id);
 #endif
 
-    if (task->owned) {
-        free(task->future);
-    }
     free(task);
 }
 
