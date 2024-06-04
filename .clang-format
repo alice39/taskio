@@ -106,6 +106,7 @@ IndentExternBlock: AfterExternBlock
 IndentRequires:  false
 IndentWidth:     4
 IndentWrappedFunctionNames: false
+InsertNewLineAtEOF: true
 InsertTrailingCommas: None
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
