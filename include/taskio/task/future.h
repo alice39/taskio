@@ -1,7 +1,7 @@
 #ifndef TASKIO_FUTURE_GUARD_HEADER
 #define TASKIO_FUTURE_GUARD_HEADER
 
-#include <ucontext.h>
+#include "../context.h"
 
 struct taskio_waker {
     struct taskio_waker (*clone)(void* data);

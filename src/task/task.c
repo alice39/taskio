@@ -1,8 +1,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ucontext.h>
 
+#include "taskio/context.h"
 #include "taskio/task/task.h"
 
 #ifdef USE_VALGRIND
