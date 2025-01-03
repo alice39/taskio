@@ -104,7 +104,17 @@
     {                                                                                                                  \
         *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                  \
         if (setjmp(__TASKIO_FUTURE_CTX->waker.jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth]) == 0) {                       \
+            __TASKIO_FUTURE_CTX->waker.can_jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth] = true;                           \
             __TASKIO_FUTURE_CTX->waker.wake((void*)&__TASKIO_FUTURE_CTX->waker);                                       \
+            return;                                                                                                    \
+        }                                                                                                              \
+    }
+
+#define suspended_yield()                                                                                              \
+    {                                                                                                                  \
+        *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                  \
+        if (setjmp(__TASKIO_FUTURE_CTX->waker.jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth]) == 0) {                       \
+            __TASKIO_FUTURE_CTX->waker.can_jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth] = true;                           \
             return;                                                                                                    \
         }                                                                                                              \
     }
@@ -119,10 +129,7 @@
                               &__TASKIO_FUTURE_OBJ->env.__TASKIO_TASK_POL, out);                                       \
                                                                                                                        \
             if (__TASKIO_FUTURE_OBJ->env.__TASKIO_TASK_POL == TASKIO_FUTURE_PENDING) {                                 \
-                if (setjmp(__TASKIO_FUTURE_CTX->waker.jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth]) == 0) {               \
-                    __TASKIO_FUTURE_CTX->waker.can_jmp[__TASKIO_FUTURE_CTX->waker.jmp_depth] = true;                   \
-                    return;                                                                                            \
-                }                                                                                                      \
+                suspended_yield();                                                                                     \
             } else if (__TASKIO_FUTURE_OBJ->env.__TASKIO_TASK_POL == TASKIO_FUTURE_READY) {                            \
                 break;                                                                                                 \
             }                                                                                                          \
