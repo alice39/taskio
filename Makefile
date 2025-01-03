@@ -1,7 +1,7 @@
 CC = gcc
 AR = ar
 
-CFLAGS = -std=c23 -O3 -Wall -Werror -Wextra -pedantic -march=native -mtune=native -fPIC
+CFLAGS = -std=gnu23 -O3 -Wall -Werror -Wextra -pedantic -march=native -mtune=native -fPIC
 
 INCLUDES = -Iinclude/
 

@@ -5,19 +5,23 @@
 #include <sys/timerfd.h>
 #include <sys/unistd.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "../../runtime_ext.h"
+#include "platform_runtime.h"
 
 static __thread uint64_t next_handle_id = 1;
 
 static int worker_run(void* arg);
+
+static void wheel_loop_handler(struct taskio_wheel_timer* wheel_timer);
+static void wheel_expiry_handler(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer);
+
 static void task_wake(struct taskio_waker* waker);
 
-struct taskio_platform_runtime {
-    int event_fd;
-    int timer_fd;
-    int epoll_fd;
-};
+void test(void*) { printf("Executed\n"); }
 
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
     switch (worker_size) {
@@ -49,16 +53,25 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
 
     timerfd_settime(runtime->platform->timer_fd, 0,
                     &(struct itimerspec){
+                        .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
                         .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
-                        .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
                     },
                     NULL);
 
     epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->event_fd,
-              &(struct epoll_event){.events = EPOLLIN | EPOLLOUT | EPOLLET, .data.fd = runtime->platform->event_fd});
+              &(struct epoll_event){.events = EPOLLIN, .data.fd = runtime->platform->event_fd});
 
-    epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->event_fd,
-              &(struct epoll_event){.events = EPOLLIN | EPOLLOUT | EPOLLET, .data.fd = runtime->platform->timer_fd});
+    epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->timer_fd,
+              &(struct epoll_event){.events = EPOLLIN, .data.fd = runtime->platform->timer_fd});
+
+    taskio_wheel_timer_init(&runtime->platform->wheels[0], 0, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[1], 1, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[2], 2, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[3], 3, runtime, 60, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[4], 4, runtime, 60, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[5], 5, runtime, 24, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[6], 6, runtime, 365, wheel_loop_handler, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[7], 7, runtime, 4, NULL, wheel_expiry_handler);
 
     runtime->poll_head = NULL;
     runtime->poll_tail = NULL;
@@ -68,6 +81,11 @@ void taskio_runtime_drop(struct taskio_runtime* runtime) {
     close(runtime->platform->event_fd);
     close(runtime->platform->timer_fd);
     close(runtime->platform->epoll_fd);
+
+    for (size_t i = 0; i < 8; i++) {
+        taskio_wheel_timer_drop(&runtime->platform->wheels[i]);
+    }
+
     free(runtime->platform);
 }
 
@@ -172,13 +190,31 @@ static int worker_run(void* arg) {
                     }
                 }
             } else if (event->data.fd == worker->runtime->platform->timer_fd) {
-                // FIXME: implement wheel timer
+                uint64_t expirations = 0;
+                if (read(worker->runtime->platform->timer_fd, &expirations, sizeof(uint64_t)) != sizeof(uint64_t)) {
+                    perror("timerfd read");
+                }
+
+                struct taskio_wheel_timer* wheel_timer = &worker->runtime->platform->wheels[0];
+                while (expirations > 0) {
+                    taskio_wheel_timer_tick(wheel_timer);
+                    expirations -= 1;
+                }
             }
         }
     }
 
-    // success
     return 0;
+}
+
+static void wheel_loop_handler(struct taskio_wheel_timer* wheel_timer) {
+    struct taskio_runtime* runtime = wheel_timer->data;
+    taskio_wheel_timer_tick(&runtime->platform->wheels[wheel_timer->id + 1]);
+}
+
+static void wheel_expiry_handler(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer) {
+    struct taskio_runtime* runtime = wheel_timer->data;
+    taskio_runtime_add_timer_from(runtime, timer);
 }
 
 static void task_wake(struct taskio_waker* waker) {
