@@ -25,8 +25,8 @@ enum taskio_future_poll {
 };
 
 struct taskio_future {
-    void (*poll)(struct taskio_future* future, struct taskio_future_context* ctx, enum taskio_future_poll* poll,
-                 void* value);
+    void (*poll)(volatile struct taskio_future* volatile future, volatile struct taskio_future_context* volatile ctx,
+                 volatile enum taskio_future_poll* volatile poll, volatile void* volatile value);
 };
 
 #endif // TASKIO_FUTURE_GUARD_HEADER
