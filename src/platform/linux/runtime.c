@@ -2,6 +2,7 @@
 
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <sys/timerfd.h>
 #include <sys/unistd.h>
 
 #include <stdlib.h>
@@ -11,6 +12,12 @@ static __thread uint64_t next_handle_id = 1;
 
 static int worker_run(void* arg);
 static void task_wake(struct taskio_waker* waker);
+
+struct taskio_platform_runtime {
+    int event_fd;
+    int timer_fd;
+    int epoll_fd;
+};
 
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
     switch (worker_size) {
@@ -35,19 +42,33 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
         worker->handle_out = NULL;
     }
 
-    runtime->event_fd = eventfd(0, 0);
-    runtime->epoll_fd = epoll_create1(0);
+    runtime->platform = malloc(sizeof(struct taskio_platform_runtime));
+    runtime->platform->event_fd = eventfd(0, 0);
+    runtime->platform->timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+    runtime->platform->epoll_fd = epoll_create1(0);
+
+    timerfd_settime(runtime->platform->timer_fd, 0,
+                    &(struct itimerspec){
+                        .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                        .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
+                    },
+                    NULL);
+
+    epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->event_fd,
+              &(struct epoll_event){.events = EPOLLIN | EPOLLOUT | EPOLLET, .data.fd = runtime->platform->event_fd});
+
+    epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->event_fd,
+              &(struct epoll_event){.events = EPOLLIN | EPOLLOUT | EPOLLET, .data.fd = runtime->platform->timer_fd});
 
     runtime->poll_head = NULL;
     runtime->poll_tail = NULL;
-
-    struct epoll_event event = {.events = EPOLLIN | EPOLLOUT | EPOLLET, .data.fd = runtime->event_fd};
-    epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, runtime->event_fd, &event);
 }
 
 void taskio_runtime_drop(struct taskio_runtime* runtime) {
-    close(runtime->event_fd);
-    close(runtime->epoll_fd);
+    close(runtime->platform->event_fd);
+    close(runtime->platform->timer_fd);
+    close(runtime->platform->epoll_fd);
+    free(runtime->platform);
 }
 
 struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct taskio_future* future,
@@ -75,7 +96,7 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
         runtime->poll_tail = task;
     }
 
-    eventfd_write(runtime->event_fd, 1);
+    eventfd_write(runtime->platform->event_fd, 1);
 
     return (struct taskio_handle){
         .id = handle_id,
@@ -106,14 +127,14 @@ static int worker_run(void* arg) {
 
     while (running) {
         struct epoll_event events[1024];
-        int nfds = epoll_wait(worker->runtime->epoll_fd, events, 1024, -1);
+        int nfds = epoll_wait(worker->runtime->platform->epoll_fd, events, 1024, -1);
 
         for (int i = 0; i < nfds; i++) {
             struct epoll_event* event = &events[i];
 
-            if (event->data.fd == worker->runtime->event_fd) {
+            if (event->data.fd == worker->runtime->platform->event_fd) {
                 eventfd_t event_out;
-                eventfd_read(worker->runtime->event_fd, &event_out);
+                eventfd_read(worker->runtime->platform->event_fd, &event_out);
 
                 struct taskio_task* task = worker->runtime->poll_head;
 
@@ -150,8 +171,8 @@ static int worker_run(void* arg) {
                         break;
                     }
                 }
-            } else {
-                // FIXME: Handle timers and other file descriptors
+            } else if (event->data.fd == worker->runtime->platform->timer_fd) {
+                // FIXME: implement wheel timer
             }
         }
     }
@@ -177,5 +198,5 @@ static void task_wake(struct taskio_waker* waker) {
     task->can_jmp[waker->jmp_depth] = true;
     memmove(&task->jmp[waker->jmp_depth], &waker->jmp[waker->jmp_depth], sizeof(jmp_buf));
 
-    eventfd_write(runtime->event_fd, 1);
+    eventfd_write(runtime->platform->event_fd, 1);
 }

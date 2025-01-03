@@ -28,12 +28,13 @@ struct taskio_worker {
     void* handle_out;   // NULL if undefined
 };
 
+struct taskio_platform_runtime;
+
 struct taskio_runtime {
     size_t worker_size;
     struct taskio_worker workers[24];
 
-    int event_fd;
-    int epoll_fd;
+    struct taskio_platform_runtime* platform;
 
     struct taskio_task* poll_head;
     struct taskio_task* poll_tail;
