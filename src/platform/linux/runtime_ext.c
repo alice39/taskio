@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "../../runtime_ext.h"
 #include "platform_runtime.h"
 
@@ -35,7 +37,14 @@ void taskio_runtime_add_timer(struct taskio_runtime* runtime, uint64_t delay, ta
 }
 
 void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio_timer* timer) {
-    uint64_t delay = timer->remaining;
+    uint64_t time = runtime->platform->wheels[0].tick * runtime->platform->wheels[0].resolution;
+    if (time >= timer->expiry_time) {
+        timer->handler(timer->data);
+        free(timer);
+        return;
+    }
+
+    uint64_t delay = timer->expiry_time - time;
 
     size_t ten_ms_index = delay / 10;
     size_t hundred_ms_index = delay / 100;

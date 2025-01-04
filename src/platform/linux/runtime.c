@@ -64,14 +64,20 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
     epoll_ctl(runtime->platform->epoll_fd, EPOLL_CTL_ADD, runtime->platform->timer_fd,
               &(struct epoll_event){.events = EPOLLIN, .data.fd = runtime->platform->timer_fd});
 
-    taskio_wheel_timer_init(&runtime->platform->wheels[0], 0, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[1], 1, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[2], 2, runtime, 10, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[3], 3, runtime, 60, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[4], 4, runtime, 60, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[5], 5, runtime, 24, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[6], 6, runtime, 365, wheel_loop_handler, wheel_expiry_handler);
-    taskio_wheel_timer_init(&runtime->platform->wheels[7], 7, runtime, 4, NULL, wheel_expiry_handler);
+    taskio_wheel_timer_init(&runtime->platform->wheels[0], 0, 1, 10, wheel_loop_handler, wheel_expiry_handler, runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[1], 1, 10, 10, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[2], 2, 100, 10, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[3], 3, 1000, 60, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[4], 4, 60000, 60, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[5], 5, 3600000, 24, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[6], 6, 86400000, 365, wheel_loop_handler, wheel_expiry_handler,
+                            runtime);
+    taskio_wheel_timer_init(&runtime->platform->wheels[7], 7, 31536000000, 4, NULL, wheel_expiry_handler, runtime);
 
     runtime->poll_head = NULL;
     runtime->poll_tail = NULL;
@@ -161,16 +167,19 @@ static int worker_run(void* arg) {
                     worker->runtime->poll_tail = NULL;
                 }
 
-                struct taskio_future_context context = {.waker = {
-                                                            .wake = task_wake,
-                                                            .worker = worker,
-                                                            .task = task,
-                                                            .can_jmp = task->can_jmp,
-                                                            .jmp = task->jmp,
-                                                            .jmp_depth = 0,
-                                                        }};
+                struct taskio_future_context context = {
+                    .waker =
+                        {
+                            .wake = task_wake,
+                            .worker = worker,
+                            .task = task,
+                            .can_jmp = task->can_jmp,
+                            .jmp = task->jmp,
+                            .jmp_depth = 0,
+                        },
+                };
 
-                enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+                volatile enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
                 task->future->poll(task->future, &context, &poll, worker->handle_out);
 
                 switch (poll) {
