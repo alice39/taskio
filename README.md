@@ -13,13 +13,13 @@ Taskio is an ongoing project, aiming to be an lazy asynchronous runtime library 
 - **Single Threaded:** ✅
 - **Multi-Threaded:** ❌
 - **RNG:** ❌
-- **Hashed Timing Wheel** ❌
+- **Hashed Timing Wheel** ✅
 
 ### Task
 - **Awaitable:** ❌
 
 ### Time
-- **Sleep** ❌
+- **Sleep** ✅
 - **Timeout** ❌
 - **Interval** ❌
 
