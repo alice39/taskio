@@ -74,10 +74,10 @@
                                                                                                                        \
     struct name##_future(name)
 
-#define return_future_fn(T, name, ...)                                                                                 \
-    return (struct name##_future) {                                                                                    \
-        .inner = {.poll = name##_poll}, .env = (struct name##_env){FUTURE_ENV_INIT(__VA_ARGS__)},                      \
-    }
+#define return_future_fn_obj(T, name, ...)                                                                             \
+    (struct name##_future) { .inner = {.poll = name##_poll}, .env = (struct name##_env){FUTURE_ENV_INIT(__VA_ARGS__)}, }
+
+#define return_future_fn(T, name, ...) return return_future_fn_obj(T, name, __VA_ARGS__)
 
 #define async_fn(T, name, block, ...)                                                                                  \
     void name##_poll(volatile struct taskio_future* volatile const __TASKIO_FUTURE_OBJ_ANY,                            \
