@@ -20,7 +20,11 @@ struct taskio_join_task;
 
 struct taskio_join_env {
     size_t len;
+    size_t completed_len;
+
     struct taskio_waker waker;
+
+    struct taskio_join_task* head;
 
     struct taskio_join_task* poll_head;
     struct taskio_join_task* poll_tail;
