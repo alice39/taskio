@@ -226,65 +226,24 @@ static int worker_run(void* arg) {
                 eventfd_t event_out;
                 eventfd_read(worker->runtime->platform->event_fd, &event_out);
 
-                struct taskio_task* task = worker->runtime->poll_head;
-
-                worker->runtime->poll_head = worker->runtime->poll_head->next;
-                if (worker->runtime->poll_head == NULL) {
-                    worker->runtime->poll_tail = NULL;
-                }
-
-                task->awaken = false;
-                task->next = NULL;
-
-                if (task->aborted) {
-                    // cleanup process
-                    task->future->counter = __TASKIO_FUTURE_CLR_VAL;
-                    task->future->poll(task->future, NULL, NULL, NULL);
-
-                    if (worker->handle_id == task->id) {
-                        running = false;
-                    }
-                    if (task->pinned) {
-                        free(task->future);
+                while (true) {
+                    struct taskio_task* task = worker->runtime->poll_head;
+                    if (task == NULL) {
+                        break;
                     }
 
-                    if (atomic_fetch_sub(&task->counter, 1) == 1) {
-                        free(task);
+                    worker->runtime->poll_head = worker->runtime->poll_head->next;
+                    if (worker->runtime->poll_head == NULL) {
+                        worker->runtime->poll_tail = NULL;
                     }
-                    continue;
-                }
 
-                task->future->counter += 1;
+                    task->awaken = false;
+                    task->next = NULL;
 
-                struct taskio_future_context context = {
-                    .waker =
-                        {
-                            .wake = task_wake,
-                            .data = task,
-                        },
-                    .worker = worker,
-                };
-
-                enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
-                task->future->poll(task->future, &context, &poll, worker->handle_out);
-
-                switch (poll) {
-                    case TASKIO_FUTURE_READY: {
+                    if (task->aborted) {
                         // cleanup process
                         task->future->counter = __TASKIO_FUTURE_CLR_VAL;
                         task->future->poll(task->future, NULL, NULL, NULL);
-
-                        task->finished = true;
-
-                        struct taskio_task_wake_node* wake_node = task->wake_on_ready_top;
-                        while (wake_node) {
-                            struct taskio_task_wake_node* next_wake_node = wake_node->next;
-
-                            wake_node->waker.wake(&wake_node->waker);
-
-                            free(wake_node);
-                            wake_node = next_wake_node;
-                        }
 
                         if (worker->handle_id == task->id) {
                             running = false;
@@ -292,14 +251,60 @@ static int worker_run(void* arg) {
                         if (task->pinned) {
                             free(task->future);
                         }
+
                         if (atomic_fetch_sub(&task->counter, 1) == 1) {
                             free(task);
                         }
-                        break;
+                        continue;
                     }
-                    case TASKIO_FUTURE_PENDING: {
-                        // Nothing to do, waiting for future to wake up.
-                        break;
+
+                    task->future->counter += 1;
+
+                    struct taskio_future_context context = {
+                        .waker =
+                            {
+                                .wake = task_wake,
+                                .data = task,
+                            },
+                        .worker = worker,
+                    };
+
+                    enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+                    task->future->poll(task->future, &context, &poll, worker->handle_out);
+
+                    switch (poll) {
+                        case TASKIO_FUTURE_READY: {
+                            // cleanup process
+                            task->future->counter = __TASKIO_FUTURE_CLR_VAL;
+                            task->future->poll(task->future, NULL, NULL, NULL);
+
+                            task->finished = true;
+
+                            struct taskio_task_wake_node* wake_node = task->wake_on_ready_top;
+                            while (wake_node) {
+                                struct taskio_task_wake_node* next_wake_node = wake_node->next;
+
+                                wake_node->waker.wake(&wake_node->waker);
+
+                                free(wake_node);
+                                wake_node = next_wake_node;
+                            }
+
+                            if (worker->handle_id == task->id) {
+                                running = false;
+                            }
+                            if (task->pinned) {
+                                free(task->future);
+                            }
+                            if (atomic_fetch_sub(&task->counter, 1) == 1) {
+                                free(task);
+                            }
+                            break;
+                        }
+                        case TASKIO_FUTURE_PENDING: {
+                            // Nothing to do, waiting for future to wake up.
+                            break;
+                        }
                     }
                 }
             } else if (event->data.fd == worker->runtime->platform->timer_fd) {
