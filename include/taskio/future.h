@@ -1,6 +1,8 @@
 #ifndef TASKIO_FUTURE_GUARD_HEADER
 #define TASKIO_FUTURE_GUARD_HEADER
 
+#include <stddef.h>
+
 struct taskio_waker {
     void (*wake)(struct taskio_waker* waker);
 

@@ -16,6 +16,7 @@ struct taskio_task {
 
     bool pinned;
     bool awaken;
+    bool aborted;
 
     struct taskio_future* future;
     struct taskio_task* next;

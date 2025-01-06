@@ -1,3 +1,4 @@
+#include <taskio/async.h>
 #include <taskio/runtime.h>
 
 #include <sys/epoll.h>
@@ -107,6 +108,10 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
         task->future = malloc(future_size);
         memmove(task->future, future, future_size);
     }
+
+    task->awaken = false;
+    task->aborted = false;
+
     task->next = NULL;
 
     if (runtime->poll_tail == NULL) {
@@ -167,6 +172,21 @@ static int worker_run(void* arg) {
                 task->awaken = false;
                 task->next = NULL;
 
+                if (task->aborted) {
+                    // cleanup process
+                    task->future->counter = __TASKIO_FUTURE_CLR_VAL;
+                    task->future->poll(task->future, NULL, NULL, NULL);
+
+                    if (worker->handle_id == task->id) {
+                        running = false;
+                    }
+                    if (task->pinned) {
+                        free(task->future);
+                    }
+                    free(task);
+                    continue;
+                }
+
                 task->future->counter += 1;
 
                 struct taskio_future_context context = {
@@ -183,6 +203,10 @@ static int worker_run(void* arg) {
 
                 switch (poll) {
                     case TASKIO_FUTURE_READY: {
+                        // cleanup process
+                        task->future->counter = __TASKIO_FUTURE_CLR_VAL;
+                        task->future->poll(task->future, NULL, NULL, NULL);
+
                         if (worker->handle_id == task->id) {
                             running = false;
                         }

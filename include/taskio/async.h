@@ -17,6 +17,8 @@
 #define __TASKIO_TASK_POL __taskio_task_poll
 #define __TASKIO_TASK_VAL __taskio_task_val
 
+#define __TASKIO_FUTURE_CLR_VAL SIZE_MAX
+
 #define future_env(...) __VA_OPT__(union {future_env_1(__VA_ARGS__)} __TASKIO_FUTURE_ENV)
 
 #define future_env_1(name, ...)                                                                                        \
@@ -96,19 +98,26 @@
     void* __TASKIO_TASK_VAL = __TASKIO_FUTURE_OBJ->inner.await_out;                                                    \
                                                                                                                        \
     if (__TASKIO_TASK_OBJ) {                                                                                           \
-        __TASKIO_TASK_OBJ->counter += 1;                                                                               \
+        if (__TASKIO_FUTURE_CLR_VAL == __TASKIO_FUTURE_OBJ->inner.counter) {                                           \
+            __TASKIO_TASK_OBJ->counter = __TASKIO_FUTURE_CLR_VAL;                                                      \
+            __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, NULL, NULL, NULL);                                              \
+        } else {                                                                                                       \
+            __TASKIO_TASK_OBJ->counter += 1;                                                                           \
                                                                                                                        \
-        enum taskio_future_poll __TASKIO_TASK_POL = TASKIO_FUTURE_PENDING;                                             \
-        __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, __TASKIO_FUTURE_CTX, &__TASKIO_TASK_POL, __TASKIO_TASK_VAL);        \
+            enum taskio_future_poll __TASKIO_TASK_POL = TASKIO_FUTURE_PENDING;                                         \
+            __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, __TASKIO_FUTURE_CTX, &__TASKIO_TASK_POL, __TASKIO_TASK_VAL);    \
                                                                                                                        \
-        switch (__TASKIO_TASK_POL) {                                                                                   \
-            case TASKIO_FUTURE_READY: {                                                                                \
-                __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                        \
-                break;                                                                                                 \
-            }                                                                                                          \
-            case TASKIO_FUTURE_PENDING: {                                                                              \
-                __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                               \
-                suspended_yield();                                                                                     \
+            switch (__TASKIO_TASK_POL) {                                                                               \
+                case TASKIO_FUTURE_READY: {                                                                            \
+                    __TASKIO_TASK_OBJ->counter = __TASKIO_FUTURE_CLR_VAL;                                              \
+                    __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, NULL, NULL, NULL);                                      \
+                    __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                    \
+                    break;                                                                                             \
+                }                                                                                                      \
+                case TASKIO_FUTURE_PENDING: {                                                                          \
+                    __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                           \
+                    suspended_yield();                                                                                 \
+                }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
     }
@@ -116,6 +125,8 @@
 #define async_scope()                                                                                                  \
     __TASKIO_FUTURE_CON += 1;                                                                                          \
     if (__TASKIO_FUTURE_CON == __TASKIO_FUTURE_OBJ->inner.counter)
+
+#define async_cleanup() if (__TASKIO_FUTURE_CLR_VAL == __TASKIO_FUTURE_OBJ->inner.counter)
 
 #define yield()                                                                                                        \
     *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                      \
