@@ -164,6 +164,7 @@ static int worker_run(void* arg) {
                     worker->runtime->poll_tail = NULL;
                 }
 
+                task->awaken = false;
                 task->future->counter += 1;
 
                 struct taskio_future_context context = {
@@ -227,6 +228,11 @@ static void task_wake(struct taskio_waker* waker) {
     struct taskio_runtime* runtime = worker->runtime;
 
     struct taskio_task* task = waker->task;
+    if (task->awaken) {
+        return;
+    }
+
+    task->awaken = true;
 
     if (runtime->poll_tail == NULL) {
         runtime->poll_head = task;

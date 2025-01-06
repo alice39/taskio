@@ -13,7 +13,10 @@
 
 struct taskio_task {
     uint64_t id;
+
     bool pinned;
+    bool awaken;
+
     struct taskio_future* future;
     struct taskio_task* next;
 };
