@@ -14,23 +14,19 @@ struct taskio_sleep_env {
     struct taskio_future_context ctx;
 };
 
+struct taskio_join_task;
+
 struct taskio_join_env {
     size_t len;
-    bool is_stack;
+    struct taskio_waker waker;
 
-    union {
-        struct taskio_future* stack_futures[16];
-        struct taskio_future** heap_futures;
-    };
-};
-
-struct taskio_join_list_env {
-    size_t len;
-    struct taskio_future** futures;
+    struct taskio_join_task* poll_head;
+    struct taskio_join_task* poll_tail;
 };
 
 future_fn(void, taskio_sleep)(uint64_t ms);
 future_fn(void, taskio_join)(size_t len, ...);
-future_fn(void, taskio_join_list)(size_t len, struct taskio_future** futures);
+
+struct taskio_join_future taskio_join_from_list(size_t len, struct taskio_future** futures);
 
 #endif // TASKIO_COMMON_GUARD_HEADER

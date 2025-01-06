@@ -4,23 +4,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct taskio_join_task {
+    struct taskio_future* future;
+
+    struct taskio_join_env* env;
+    struct taskio_join_task* next;
+};
+
+static void _join_wake(struct taskio_waker* waker);
+
 future_fn_impl(void, taskio_join)(size_t len, ...) {
     struct taskio_join_future future = return_future_fn_obj(void, taskio_join, len);
 
     va_list args;
     va_start(args);
 
-    if (len > 16) {
-        future.env.is_stack = false;
-        future.env.heap_futures = malloc(sizeof(struct taskio_future*) * len);
-        for (size_t i = 0; i < len; i++) {
-            future.env.heap_futures[i] = va_arg(args, struct taskio_future*);
+    for (size_t i = 0; i < len; i++) {
+        struct taskio_join_task* task = malloc(sizeof(struct taskio_join_task));
+        task->future = va_arg(args, struct taskio_future*);
+        task->next = NULL;
+
+        if (future.env.poll_tail) {
+            future.env.poll_tail->next = task;
+        } else {
+            future.env.poll_head = task;
         }
-    } else {
-        future.env.is_stack = true;
-        for (size_t i = 0; i < len; i++) {
-            future.env.stack_futures[i] = va_arg(args, struct taskio_future*);
-        }
+        future.env.poll_tail = task;
     }
 
     va_end(args);
@@ -28,93 +37,85 @@ future_fn_impl(void, taskio_join)(size_t len, ...) {
     return future;
 }
 
-future_fn(void, taskio_join_list)(size_t len, struct taskio_future** futures) {
-    return_future_fn(void, taskio_join_list, len, futures);
+struct taskio_join_future taskio_join_from_list(size_t len, struct taskio_future** futures) {
+    struct taskio_join_future future = return_future_fn_obj(void, taskio_join, len);
+
+    for (size_t i = 0; i < len; i++) {
+        struct taskio_join_task* task = malloc(sizeof(struct taskio_join_task));
+        task->future = futures[i];
+        task->next = NULL;
+
+        if (future.env.poll_tail) {
+            future.env.poll_tail->next = task;
+        } else {
+            future.env.poll_head = task;
+        }
+        future.env.poll_tail = task;
+    }
+
+    return future;
 }
 
 async_fn(void, taskio_join) {
     async_fn_begin(void, taskio_join);
 
     async_scope_while(true) {
-        bool completed = true;
-        bool is_stack = async_env(is_stack);
+        async_env(waker) = __TASKIO_FUTURE_CTX->waker;
 
-        for (size_t current = 0; current < async_env(len); current++) {
-            struct taskio_future* future = is_stack ? async_env(stack_futures)[current]
-                                                    : async_env(heap_futures)[current];
-            if (future == NULL) {
-                continue;
-            }
+        struct taskio_join_task* task = async_env(poll_head);
+        async_env(poll_head) = NULL;
+        async_env(poll_tail) = NULL;
 
-            future->counter += 1;
+        while (task) {
+            struct taskio_join_task* next_task = task->next;
 
+            task->env = &__TASKIO_FUTURE_OBJ->env;
+            task->future->counter += 1;
+
+            struct taskio_future_context ctx = {
+                .waker =
+                    {
+                        .wake = _join_wake,
+                        .worker = async_env(waker).worker,
+                        .task = task,
+                    },
+            };
             enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
-            future->poll(future, __TASKIO_FUTURE_CTX, &poll, NULL);
+            task->future->poll(task->future, &ctx, &poll, NULL);
 
             switch (poll) {
                 case TASKIO_FUTURE_READY: {
-                    if (is_stack) {
-                        async_env(stack_futures)[current] = NULL;
-                    } else {
-                        async_env(heap_futures)[current] = NULL;
-                    }
+                    async_env(len) -= 1;
+                    free(task);
                     break;
                 }
                 case TASKIO_FUTURE_PENDING: {
-                    completed = false;
                     break;
                 }
             }
+
+            task = next_task;
         }
 
-        if (completed) {
-            async_break;
+        if (async_env(len) > 0) {
+            suspended_yield();
+        } else {
+            async_return();
         }
-
-        suspended_yield();
     }
-
-    async_scope() { async_return(); }
 }
 
-async_fn(void, taskio_join_list) {
-    async_fn_begin(void, taskio_join_list);
+static void _join_wake(struct taskio_waker* waker) {
+    struct taskio_join_task* task = waker->task;
 
-    size_t len = async_env(len);
-    struct taskio_future** futures = async_env(futures);
+    task->next = NULL;
 
-    async_scope_while(true) {
-        bool completed = true;
-
-        for (size_t current = 0; current < len; current++) {
-            struct taskio_future* future = futures[current];
-            if (future == NULL) {
-                continue;
-            }
-
-            future->counter += 1;
-
-            enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
-            future->poll(future, __TASKIO_FUTURE_CTX, &poll, NULL);
-
-            switch (poll) {
-                case TASKIO_FUTURE_READY: {
-                    futures[current] = NULL;
-                    break;
-                }
-                case TASKIO_FUTURE_PENDING: {
-                    completed = false;
-                    break;
-                }
-            }
-        }
-
-        if (completed) {
-            async_break;
-        }
-
-        suspended_yield();
+    if (task->env->poll_tail) {
+        task->env->poll_tail->next = task;
+    } else {
+        task->env->poll_head = task;
     }
+    task->env->poll_tail = task;
 
-    async_scope() { async_return(); }
+    task->env->waker.wake(&task->env->waker);
 }
