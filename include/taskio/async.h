@@ -85,6 +85,10 @@
 
 #define return_future_fn(T, name, ...) return return_future_fn_obj(T, name, __VA_ARGS__)
 
+#define drop_future_fn(future)                                                                                         \
+    future.inner.counter = __TASKIO_FUTURE_CLR_VAL;                                                                    \
+    future.inner.poll(&future.inner, NULL, NULL, NULL);
+
 #define async_fn(T, name)                                                                                              \
     void name##_poll(struct taskio_future* __TASKIO_FUTURE_OBJ_ANY, struct taskio_future_context* __TASKIO_FUTURE_CTX, \
                      enum taskio_future_poll* __TASKIO_FUTURE_POL, void* __TASKIO_FUTURE_VAL_ANY)
