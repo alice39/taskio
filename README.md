@@ -16,7 +16,8 @@ Taskio is an ongoing project, aiming to be an lazy asynchronous runtime library 
 - **Hashed Timing Wheel** ✅
 
 ### Task
-- **Awaitable:** ❌
+- **Awaitable:** ✅
+- **Abortable:** ✅
 
 ### Time
 - **Sleep** ✅
