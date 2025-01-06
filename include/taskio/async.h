@@ -157,4 +157,14 @@
     __VA_OPT__(if (__TASKIO_FUTURE_VAL) { *__TASKIO_FUTURE_VAL = __VA_ARGS__; })                                       \
     return
 
+#define async_scope_while(cond)                                                                                        \
+    __TASKIO_FUTURE_CON += 1;                                                                                          \
+    if (__TASKIO_FUTURE_CON == __TASKIO_FUTURE_OBJ->inner.counter)                                                     \
+        if (((cond) && ((__TASKIO_FUTURE_OBJ->inner.counter -= 1) | 1)) ||                                             \
+            ((__TASKIO_FUTURE_OBJ->inner.counter += 1) & 0))
+
+#define async_break                                                                                                    \
+    __TASKIO_FUTURE_OBJ->inner.counter += 1;                                                                           \
+    yield()
+
 #endif // TASKIO_ASYNC_GUARD_HEADER
