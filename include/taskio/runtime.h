@@ -14,8 +14,6 @@
 struct taskio_task {
     uint64_t id;
     bool pinned;
-    bool can_jmp[16];
-    jmp_buf jmp[16];
     struct taskio_future* future;
     struct taskio_task* next;
 };

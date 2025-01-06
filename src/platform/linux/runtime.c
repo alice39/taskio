@@ -21,8 +21,6 @@ static void wheel_expiry_handler(struct taskio_wheel_timer* wheel_timer, struct 
 
 static void task_wake(struct taskio_waker* waker);
 
-void test(void*) { printf("Executed\n"); }
-
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
     switch (worker_size) {
         case TASKIO_SINGLE_THREADED: {
@@ -101,7 +99,6 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
 
     struct taskio_task* task = malloc(sizeof(struct taskio_task));
     task->id = handle_id;
-    memset(task->can_jmp, 0, sizeof(sizeof(bool[16])));
     if (future_size == 0) {
         task->pinned = false;
         task->future = future;
@@ -167,19 +164,18 @@ static int worker_run(void* arg) {
                     worker->runtime->poll_tail = NULL;
                 }
 
+                task->future->counter += 1;
+
                 struct taskio_future_context context = {
                     .waker =
                         {
                             .wake = task_wake,
                             .worker = worker,
                             .task = task,
-                            .can_jmp = task->can_jmp,
-                            .jmp = task->jmp,
-                            .jmp_depth = 0,
                         },
                 };
 
-                volatile enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+                enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
                 task->future->poll(task->future, &context, &poll, worker->handle_out);
 
                 switch (poll) {
@@ -239,9 +235,6 @@ static void task_wake(struct taskio_waker* waker) {
         runtime->poll_tail->next = task;
         runtime->poll_tail = task;
     }
-
-    task->can_jmp[waker->jmp_depth] = true;
-    memmove(&task->jmp[waker->jmp_depth], &waker->jmp[waker->jmp_depth], sizeof(jmp_buf));
 
     eventfd_write(runtime->platform->event_fd, 1);
 }

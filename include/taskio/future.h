@@ -1,18 +1,11 @@
 #ifndef TASKIO_FUTURE_GUARD_HEADER
 #define TASKIO_FUTURE_GUARD_HEADER
 
-#include <setjmp.h>
-#include <stdbool.h>
-
 struct taskio_waker {
     void (*wake)(struct taskio_waker* waker);
 
     void* worker;
     void* task;
-
-    int jmp_depth;
-    bool* can_jmp;
-    jmp_buf* jmp;
 };
 
 struct taskio_future_context {
@@ -25,8 +18,12 @@ enum taskio_future_poll {
 };
 
 struct taskio_future {
-    void (*poll)(volatile struct taskio_future* volatile future, volatile struct taskio_future_context* volatile ctx,
-                 volatile enum taskio_future_poll* volatile poll, volatile void* volatile value);
+    void (*poll)(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);
+
+    struct taskio_future* await_future;
+    void* await_out;
+
+    size_t counter;
 };
 
 #endif // TASKIO_FUTURE_GUARD_HEADER
