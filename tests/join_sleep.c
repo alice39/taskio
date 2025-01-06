@@ -5,8 +5,17 @@
 #include <taskio.h>
 #include <taskio/common.h>
 
-taskio_main(future_env(taskio_join), async_env_decl(struct taskio_sleep_future, f1),
-            async_env_decl(struct taskio_sleep_future, f2)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(taskio_join);
+
+    struct taskio_sleep_future f1;
+    struct taskio_sleep_future f2;
+};
+
+taskio_main() {
     taskio_main_begin();
 
     async_scope() {

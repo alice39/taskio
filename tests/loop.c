@@ -5,7 +5,15 @@
 #include <taskio.h>
 #include <taskio/common.h>
 
-taskio_main(future_env(taskio_sleep), async_env_decl(size_t, i)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(taskio_sleep);
+    size_t i;
+};
+
+taskio_main() {
     taskio_main_begin();
 
     async_scope_while(async_env(i) < 5) {

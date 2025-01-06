@@ -59,7 +59,6 @@
 #define FUTURE_ENV_INIT_8(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_9(__VA_ARGS__))
 #define FUTURE_ENV_INIT_9(first, ...) .first = first,
 
-#define async_env_decl(T, name) T, name
 #define async_env(name) __TASKIO_FUTURE_OBJ->env.name
 
 #define future_fn(T, name)                                                                                             \

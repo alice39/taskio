@@ -40,8 +40,18 @@ async_fn(void, wait_task) {
     }
 }
 
-taskio_main(future_env(taskio_join), async_env_decl(struct taskio_semaphore, sem),
-            async_env_decl(struct wait_task_future, wait_one), async_env_decl(struct wait_task_future, wait_two)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(taskio_join);
+
+    struct taskio_semaphore sem;
+    struct wait_task_future wait_one;
+    struct wait_task_future wait_two;
+};
+
+taskio_main() {
     taskio_main_begin();
 
     struct taskio_semaphore* sem = &async_env(sem);

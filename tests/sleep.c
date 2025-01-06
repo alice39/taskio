@@ -5,7 +5,14 @@
 #include <taskio.h>
 #include <taskio/common.h>
 
-taskio_main(future_env(taskio_sleep)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(taskio_sleep);
+};
+
+taskio_main() {
     taskio_main_begin();
 
     async_scope() {

@@ -46,8 +46,18 @@ async_fn(void, shoot) {
     }
 }
 
-taskio_main(future_env(taskio_join), async_env_decl(struct taskio_semaphore, sem),
-            async_env_decl(struct listener_future, f1), async_env_decl(struct shoot_future, f2)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(taskio_join);
+
+    struct taskio_semaphore sem;
+    struct listener_future f1;
+    struct shoot_future f2;
+};
+
+taskio_main() {
     taskio_main_begin();
 
     struct taskio_semaphore* sem = &async_env(sem);

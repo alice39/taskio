@@ -30,7 +30,15 @@ async_fn(int, foo) {
     }
 }
 
-taskio_main(future_env(foo), async_env_decl(int, a)) {
+struct taskio_main_env {
+    int argc;
+    char** args;
+
+    future_env(foo);
+    int a;
+};
+
+taskio_main() {
     taskio_main_begin();
 
     async_scope() {
