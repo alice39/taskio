@@ -41,32 +41,40 @@ void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer) {
     wheel_timer->data = NULL;
 }
 
-void taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_timer, uint64_t delay, taskio_wheel_handler handler,
-                            void* data) {
+struct taskio_timer* taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_timer, uint64_t delay,
+                                            taskio_wheel_handler handler, void* data) {
     if (delay == 0) {
         handler(data);
-        return;
+        return NULL;
     }
 
     struct taskio_timer* timer = malloc(sizeof(struct taskio_timer));
+    // timer is handled by the user and the wheel
+    timer->counter = 2;
     timer->expiry_time = wheel_timer->tick * wheel_timer->resolution + delay;
     timer->handler = handler;
     timer->data = data;
     timer->next = NULL;
 
     taskio_wheel_timer_add_from(wheel_timer, timer);
+    return timer;
 }
 
 void taskio_wheel_timer_add_from(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer) {
     uint64_t time = wheel_timer->tick * wheel_timer->resolution;
     if (time >= timer->expiry_time) {
+        // fired
+        timer->bucket = NULL;
         timer->handler(timer->data);
-        free(timer);
+
+        taskio_timer_drop(timer);
         return;
     }
 
     uint64_t remaining_ticks = (timer->expiry_time - time) / wheel_timer->resolution;
     size_t bucket_index = (wheel_timer->tick + remaining_ticks) % wheel_timer->wheel_size;
+
+    timer->bucket = &wheel_timer->timer_buckets[bucket_index];
 
     timer->next = wheel_timer->timer_buckets[bucket_index];
     wheel_timer->timer_buckets[bucket_index] = timer;
@@ -88,8 +96,11 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
         timer->next = NULL;
 
         if (time >= timer->expiry_time) {
+            // fired
+            timer->bucket = NULL;
             timer->handler(timer->data);
-            free(timer);
+
+            taskio_timer_drop(timer);
         } else if (wheel_timer->expiry_handler) {
             wheel_timer->expiry_handler(wheel_timer, timer);
         } else {
@@ -114,4 +125,68 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
     }
 
     wheel_timer->tick += 1;
+}
+
+void taskio_timer_clone(struct taskio_timer* timer) { timer->counter++; }
+
+void taskio_timer_drop(struct taskio_timer* timer) {
+    if (atomic_fetch_sub(&timer->counter, 1) == 1) {
+        free(timer);
+    }
+}
+
+void taskio_timer_fire(struct taskio_timer* timer) {
+    struct taskio_timer** bucket = timer->bucket;
+    timer->bucket = NULL;
+
+    if (bucket) {
+        timer->handler(timer->data);
+
+        struct taskio_timer* current = *bucket;
+        struct taskio_timer* previous = NULL;
+
+        while (current && current != timer) {
+            previous = current;
+            current = current->next;
+        }
+
+        if (previous) {
+            previous->next = timer->next;
+        } else {
+            *bucket = timer->next;
+        }
+
+        // dropped for the wheel
+        taskio_timer_drop(timer);
+    }
+
+    // dropped for the user
+    taskio_timer_drop(timer);
+}
+
+void taskio_timer_abort(struct taskio_timer* timer) {
+    struct taskio_timer** bucket = timer->bucket;
+    timer->bucket = NULL;
+
+    if (bucket) {
+        struct taskio_timer* current = *bucket;
+        struct taskio_timer* previous = NULL;
+
+        while (current && current != timer) {
+            previous = current;
+            current = current->next;
+        }
+
+        if (previous) {
+            previous->next = timer->next;
+        } else {
+            *bucket = timer->next;
+        }
+
+        // dropped for the wheel
+        taskio_timer_drop(timer);
+    }
+
+    // dropped for the user
+    taskio_timer_drop(timer);
 }

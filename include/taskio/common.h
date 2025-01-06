@@ -11,7 +11,9 @@
 
 struct taskio_sleep_env {
     uint64_t ms;
-    struct taskio_future_context ctx;
+    struct taskio_waker waker;
+
+    void* timer;
 };
 
 struct taskio_join_task;

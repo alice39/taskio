@@ -3,8 +3,8 @@
 #include "../../runtime_ext.h"
 #include "platform_runtime.h"
 
-void taskio_runtime_add_timer(struct taskio_runtime* runtime, uint64_t delay, taskio_wheel_handler handler,
-                              void* data) {
+struct taskio_timer* taskio_runtime_add_timer(struct taskio_runtime* runtime, uint64_t delay,
+                                              taskio_wheel_handler handler, void* data) {
     size_t ten_ms_index = delay / 10;
     size_t hundred_ms_index = delay / 100;
     size_t second_index = delay / 1000;
@@ -33,7 +33,7 @@ void taskio_runtime_add_timer(struct taskio_runtime* runtime, uint64_t delay, ta
         wheel_timer = &runtime->platform->wheels[0];
     }
 
-    taskio_wheel_timer_add(wheel_timer, delay, handler, data);
+    return taskio_wheel_timer_add(wheel_timer, delay, handler, data);
 }
 
 void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio_timer* timer) {
