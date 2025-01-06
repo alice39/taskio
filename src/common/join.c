@@ -73,11 +73,11 @@ async_fn(void, taskio_join) {
             task->future->counter += 1;
 
             struct taskio_future_context ctx = {
+                .worker = __TASKIO_FUTURE_CTX->worker,
                 .waker =
                     {
                         .wake = _join_wake,
-                        .worker = async_env(waker).worker,
-                        .task = task,
+                        .data = task,
                     },
             };
             enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
@@ -106,7 +106,7 @@ async_fn(void, taskio_join) {
 }
 
 static void _join_wake(struct taskio_waker* waker) {
-    struct taskio_join_task* task = waker->task;
+    struct taskio_join_task* task = waker->data;
 
     task->next = NULL;
 

@@ -5,13 +5,13 @@
 
 struct taskio_waker {
     void (*wake)(struct taskio_waker* waker);
-
-    void* worker;
-    void* task;
+    void* data;
 };
 
 struct taskio_future_context {
     struct taskio_waker waker;
+
+    void* worker;
 };
 
 enum taskio_future_poll {

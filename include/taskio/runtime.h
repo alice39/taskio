@@ -1,6 +1,7 @@
 #ifndef TASKIO_RUNTIME_GUARD_HEADER
 #define TASKIO_RUNTIME_GUARD_HEADER
 
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -11,12 +12,21 @@
 #define TASKIO_SINGLE_THREADED (0)
 #define TASKIO_MULTI_THREADED (-1)
 
+struct taskio_runtime;
+
+struct taskio_task_wake_node;
+
 struct taskio_task {
+    atomic_size_t counter;
     uint64_t id;
 
     bool pinned;
     bool awaken;
     bool aborted;
+    bool finished;
+
+    struct taskio_runtime* runtime;
+    struct taskio_task_wake_node* wake_on_ready_top;
 
     struct taskio_future* future;
     struct taskio_task* next;
@@ -44,7 +54,7 @@ struct taskio_runtime {
 
 struct taskio_handle {
     uint64_t id;
-    void (*join)();
+    void* task;
 };
 
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t workers);
@@ -56,5 +66,14 @@ struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtim
                                                    size_t future_size);
 
 void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_future* future);
+
+struct taskio_handle taskio_handle_clone(struct taskio_handle* handle);
+void taskio_handle_drop(struct taskio_handle* handle);
+
+bool taskio_handle_is_aborted(struct taskio_handle* handle);
+bool taskio_handle_is_finished(struct taskio_handle* handle);
+
+void taskio_handle_abort(struct taskio_handle* handle);
+void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker, void* out);
 
 #endif // TASKIO_RUNTIME_GUARD_HEADER
