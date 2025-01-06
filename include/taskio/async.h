@@ -107,6 +107,7 @@
                 break;                                                                                                 \
             }                                                                                                          \
             case TASKIO_FUTURE_PENDING: {                                                                              \
+                __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                               \
                 suspended_yield();                                                                                     \
             }                                                                                                          \
         }                                                                                                              \
