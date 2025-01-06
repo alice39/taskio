@@ -24,7 +24,13 @@ struct taskio_join_env {
     };
 };
 
+struct taskio_join_list_env {
+    size_t len;
+    struct taskio_future** futures;
+};
+
 future_fn(void, taskio_sleep)(uint64_t ms);
 future_fn(void, taskio_join)(size_t len, ...);
+future_fn(void, taskio_join_list)(size_t len, struct taskio_future** futures);
 
 #endif // TASKIO_COMMON_GUARD_HEADER

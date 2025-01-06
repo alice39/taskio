@@ -28,6 +28,10 @@ future_fn_impl(void, taskio_join)(size_t len, ...) {
     return future;
 }
 
+future_fn(void, taskio_join_list)(size_t len, struct taskio_future** futures) {
+    return_future_fn(void, taskio_join_list, len, futures);
+}
+
 async_fn(void, taskio_join) {
     async_fn_begin(void, taskio_join);
 
@@ -54,6 +58,48 @@ async_fn(void, taskio_join) {
                     } else {
                         async_env(heap_futures)[current] = NULL;
                     }
+                    break;
+                }
+                case TASKIO_FUTURE_PENDING: {
+                    completed = false;
+                    break;
+                }
+            }
+        }
+
+        if (completed) {
+            async_break;
+        }
+
+        suspended_yield();
+    }
+
+    async_scope() { async_return(); }
+}
+
+async_fn(void, taskio_join_list) {
+    async_fn_begin(void, taskio_join_list);
+
+    size_t len = async_env(len);
+    struct taskio_future** futures = async_env(futures);
+
+    async_scope_while(true) {
+        bool completed = true;
+
+        for (size_t current = 0; current < len; current++) {
+            struct taskio_future* future = futures[current];
+            if (future == NULL) {
+                continue;
+            }
+
+            future->counter += 1;
+
+            enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+            future->poll(future, __TASKIO_FUTURE_CTX, &poll, NULL);
+
+            switch (poll) {
+                case TASKIO_FUTURE_READY: {
+                    futures[current] = NULL;
                     break;
                 }
                 case TASKIO_FUTURE_PENDING: {
