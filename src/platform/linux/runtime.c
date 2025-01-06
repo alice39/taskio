@@ -165,6 +165,8 @@ static int worker_run(void* arg) {
                 }
 
                 task->awaken = false;
+                task->next = NULL;
+
                 task->future->counter += 1;
 
                 struct taskio_future_context context = {
