@@ -140,6 +140,13 @@
     *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                      \
     return
 
+#define await_get_handle(handle, out)                                                                                  \
+    taskio_handle_join(&handle, &__TASKIO_FUTURE_CTX->waker, out);                                                     \
+    taskio_handle_drop(&handle);                                                                                       \
+    suspended_yield()
+
+#define await_handle(handle) await_get_handle(handle, NULL)
+
 #define await_get(future, out)                                                                                         \
     __TASKIO_FUTURE_OBJ->inner.await_future = &future.inner;                                                           \
     __TASKIO_FUTURE_OBJ->inner.await_out = out;                                                                        \
