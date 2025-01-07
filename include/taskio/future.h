@@ -11,7 +11,7 @@ struct taskio_waker {
 struct taskio_future_context {
     struct taskio_waker waker;
 
-    void* worker;
+    void* runtime;
 };
 
 enum taskio_future_poll {

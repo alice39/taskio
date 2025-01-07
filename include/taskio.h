@@ -18,20 +18,21 @@
     }                                                                                                                  \
                                                                                                                        \
     int main(int argc, char** args) {                                                                                  \
-        struct taskio_runtime rt;                                                                                      \
-        taskio_runtime_init(&rt, TASKIO_SINGLE_THREADED);                                                              \
+        taskio_stack_runtime stack_rt = {};                                                                            \
+        struct taskio_runtime* rt = (struct taskio_runtime*)stack_rt;                                                  \
+        taskio_runtime_init(rt, TASKIO_SINGLE_THREADED);                                                               \
                                                                                                                        \
         if (sizeof(struct __taskio_async_main_future) < 512000) {                                                      \
             struct __taskio_async_main_future future = __taskio_async_main(argc, args);                                \
-            taskio_runtime_block_on(&rt, &future.inner);                                                               \
+            taskio_runtime_block_on(rt, &future.inner);                                                                \
         } else {                                                                                                       \
             struct __taskio_async_main_future* future = malloc(sizeof(struct __taskio_async_main_future));             \
             __taskio_async_main_init(future, argc, args);                                                              \
-            taskio_runtime_block_on(&rt, &future->inner);                                                              \
+            taskio_runtime_block_on(rt, &future->inner);                                                               \
             free(future);                                                                                              \
         }                                                                                                              \
                                                                                                                        \
-        taskio_runtime_drop(&rt);                                                                                      \
+        taskio_runtime_drop(rt);                                                                                       \
         return 0;                                                                                                      \
     }                                                                                                                  \
                                                                                                                        \

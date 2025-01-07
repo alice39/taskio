@@ -20,8 +20,8 @@ async_fn(void, taskio_sleep) {
         struct taskio_waker* waker = &async_env(waker);
         *waker = __TASKIO_FUTURE_CTX->waker;
 
-        struct taskio_worker* worker = __TASKIO_FUTURE_CTX->worker;
-        async_env(timer) = taskio_runtime_add_timer(worker->runtime, async_env(ms), taskio_sleep_handler, waker);
+        struct taskio_runtime* runtime = __TASKIO_FUTURE_CTX->runtime;
+        async_env(timer) = taskio_runtime_add_timer(runtime, async_env(ms), taskio_sleep_handler, waker);
         suspended_yield();
     }
 

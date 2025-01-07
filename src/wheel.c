@@ -3,15 +3,15 @@
 #include "wheel.h"
 
 void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, size_t id, uint64_t resolution, size_t len,
-                             taskio_wheel_loop_handler loop_handler, taskio_wheel_expiry_handler expiry_handler,
-                             void* data) {
+                             struct taskio_timer** buckets, taskio_wheel_loop_handler loop_handler,
+                             taskio_wheel_expiry_handler expiry_handler, void* data) {
     wheel_timer->tick = 0;
     wheel_timer->id = id;
 
     wheel_timer->resolution = resolution;
 
     wheel_timer->wheel_size = len;
-    wheel_timer->timer_buckets = calloc(len, sizeof(struct taskio_timer*));
+    wheel_timer->timer_buckets = buckets;
 
     wheel_timer->loop_handler = loop_handler;
     wheel_timer->expiry_handler = expiry_handler;
@@ -34,7 +34,7 @@ void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer) {
     wheel_timer->resolution = 0;
 
     wheel_timer->wheel_size = 0;
-    free(wheel_timer->timer_buckets);
+    wheel_timer->timer_buckets = NULL;
 
     wheel_timer->loop_handler = NULL;
     wheel_timer->expiry_handler = NULL;

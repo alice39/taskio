@@ -12,11 +12,10 @@
 #define TASKIO_SINGLE_THREADED (0)
 #define TASKIO_MULTI_THREADED (-1)
 
-#define taskio_spawn_pinned(future)                                                                                    \
-    taskio_runtime_spawn(((struct taskio_worker*)__TASKIO_FUTURE_CTX->worker)->runtime, &future.inner, 0)
+#define taskio_spawn_pinned(future) taskio_runtime_spawn(__TASKIO_FUTURE_CTX->runtime, &future.inner, 0)
 
 #define taskio_spawn_with_handle(future)                                                                               \
-    taskio_runtime_spawn(((struct taskio_worker*)__TASKIO_FUTURE_CTX->worker)->runtime, &future.inner, sizeof(future))
+    taskio_runtime_spawn(__TASKIO_FUTURE_CTX->runtime, &future.inner, sizeof(future))
 
 #define taskio_spawn(future)                                                                                           \
     {                                                                                                                  \
@@ -26,49 +25,14 @@
 
 struct taskio_runtime;
 
-struct taskio_task_wake_node;
-
-struct taskio_task {
-    atomic_size_t counter;
-    uint64_t id;
-
-    bool pinned;
-    bool awaken;
-    bool aborted;
-    bool finished;
-
-    struct taskio_runtime* runtime;
-    struct taskio_task_wake_node* wake_on_ready_top;
-
-    struct taskio_future* future;
-    struct taskio_task* next;
-};
-
-struct taskio_worker {
-    thrd_t id;
-    struct taskio_runtime* runtime;
-
-    uint64_t handle_id; // -1 if undefined
-    void* handle_out;   // NULL if undefined
-};
-
-struct taskio_platform_runtime;
-
-struct taskio_runtime {
-    size_t worker_size;
-    struct taskio_worker workers[24];
-
-    struct taskio_platform_runtime* platform;
-
-    bool poll_scheduled;
-    struct taskio_task* poll_head;
-    struct taskio_task* poll_tail;
-};
-
 struct taskio_handle {
     uint64_t id;
     void* task;
 };
+
+typedef char taskio_stack_runtime[6 * 1024];
+
+size_t taskio_runtime_size();
 
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t workers);
 void taskio_runtime_drop(struct taskio_runtime* runtime);

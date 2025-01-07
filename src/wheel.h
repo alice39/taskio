@@ -39,8 +39,8 @@ struct taskio_wheel_timer {
 };
 
 void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, size_t id, uint64_t resolution, size_t len,
-                             taskio_wheel_loop_handler loop_handler, taskio_wheel_expiry_handler expiry_handler,
-                             void* data);
+                             struct taskio_timer** buckets, taskio_wheel_loop_handler loop_handler,
+                             taskio_wheel_expiry_handler expiry_handler, void* data);
 void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer);
 
 struct taskio_timer* taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_timer, uint64_t delay,
