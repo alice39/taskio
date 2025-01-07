@@ -86,6 +86,7 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
                             runtime);
     taskio_wheel_timer_init(&runtime->platform->wheels[7], 7, 31536000000, 4, NULL, wheel_expiry_handler, runtime);
 
+    runtime->poll_scheduled = false;
     runtime->poll_head = NULL;
     runtime->poll_tail = NULL;
 }
@@ -307,6 +308,8 @@ static int worker_run(void* arg) {
                         }
                     }
                 }
+
+                worker->runtime->poll_scheduled = false;
             } else if (event->data.fd == worker->runtime->platform->timer_fd) {
                 uint64_t expirations = 0;
                 if (read(worker->runtime->platform->timer_fd, &expirations, sizeof(uint64_t)) != sizeof(uint64_t)) {
@@ -352,7 +355,10 @@ static void task_add_event_loop(struct taskio_task* task) {
 
     runtime->poll_tail = task;
 
-    eventfd_write(runtime->platform->event_fd, 1);
+    if (!runtime->poll_scheduled) {
+        runtime->poll_scheduled = true;
+        eventfd_write(runtime->platform->event_fd, 1);
+    }
 }
 
 static void task_wake(struct taskio_waker* waker) {

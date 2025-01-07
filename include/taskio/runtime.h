@@ -60,6 +60,7 @@ struct taskio_runtime {
 
     struct taskio_platform_runtime* platform;
 
+    bool poll_scheduled;
     struct taskio_task* poll_head;
     struct taskio_task* poll_tail;
 };
