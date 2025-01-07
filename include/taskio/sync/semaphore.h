@@ -34,7 +34,7 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore);
 
 size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore);
 
-future_fn(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore);
+future_fn(void, taskio_semaphore_wait, future_arg(struct taskio_semaphore*, semaphore));
 void taskio_semaphore_signal(struct taskio_semaphore* semaphore);
 
 #endif // TASKIO_SYNC_SEMAPHORE_GUARD_HEADER

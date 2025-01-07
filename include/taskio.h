@@ -3,6 +3,8 @@
 
 #if defined(TASKIO_RUNTIME) && TASKIO_RUNTIME == SIMPLE
 
+#include <stdlib.h>
+
 #include "taskio/async.h"
 #include "taskio/runtime.h"
 
@@ -11,7 +13,7 @@
 #define taskio_main_begin() async_fn_begin(int, __taskio_async_main)
 
 #define taskio_main()                                                                                                  \
-    future_fn(void, __taskio_async_main)(int argc, char** args) {                                                      \
+    static_future_fn(void, __taskio_async_main, int, argc, char**, args) {                                             \
         return_future_fn(void, __taskio_async_main, argc, args);                                                       \
     }                                                                                                                  \
                                                                                                                        \
@@ -19,8 +21,15 @@
         struct taskio_runtime rt;                                                                                      \
         taskio_runtime_init(&rt, TASKIO_SINGLE_THREADED);                                                              \
                                                                                                                        \
-        struct __taskio_async_main_future future = __taskio_async_main(argc, args);                                    \
-        taskio_runtime_block_on(&rt, &future.inner);                                                                   \
+        if (sizeof(struct __taskio_async_main_future) < 512000) {                                                      \
+            struct __taskio_async_main_future future = __taskio_async_main(argc, args);                                \
+            taskio_runtime_block_on(&rt, &future.inner);                                                               \
+        } else {                                                                                                       \
+            struct __taskio_async_main_future* future = malloc(sizeof(struct __taskio_async_main_future));             \
+            __taskio_async_main_init(future, argc, args);                                                              \
+            taskio_runtime_block_on(&rt, &future->inner);                                                              \
+            free(future);                                                                                              \
+        }                                                                                                              \
                                                                                                                        \
         taskio_runtime_drop(&rt);                                                                                      \
         return 0;                                                                                                      \

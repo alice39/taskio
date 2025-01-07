@@ -3,6 +3,8 @@
 
 #include "future.h"
 
+#define __TASKIO_FUTURE_OUT __taskio_future
+
 #define __TASKIO_FUTURE_OBJ_ANY __taskio_future
 #define __TASKIO_FUTURE_OBJ __taskio_future_own
 #define __TASKIO_FUTURE_CTX __taskio_ctx
@@ -47,42 +49,91 @@
     __VA_OPT__(future_env_9(__VA_ARGS__))
 #define future_env_9(name, ...) struct name##_future name;
 
-#define FUTURE_ENV_INIT(...) __VA_OPT__(FUTURE_ENV_INIT_1(__VA_ARGS__))
+#define FUTURE_ARG_DECL(...) __VA_OPT__(FUTURE_ARG_DECL_1(__VA_ARGS__))
+#define FUTURE_ARG(...) __VA_OPT__(FUTURE_ARG_1(__VA_ARGS__))
+#define FUTURE_ARG_ENV(...) __VA_OPT__(FUTURE_ARG_ENV_1(__VA_ARGS__))
 
-#define FUTURE_ENV_INIT_1(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_2(__VA_ARGS__))
-#define FUTURE_ENV_INIT_2(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_3(__VA_ARGS__))
-#define FUTURE_ENV_INIT_3(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_4(__VA_ARGS__))
-#define FUTURE_ENV_INIT_4(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_5(__VA_ARGS__))
-#define FUTURE_ENV_INIT_5(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_6(__VA_ARGS__))
-#define FUTURE_ENV_INIT_6(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_7(__VA_ARGS__))
-#define FUTURE_ENV_INIT_7(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_8(__VA_ARGS__))
-#define FUTURE_ENV_INIT_8(first, ...) .first = first, __VA_OPT__(FUTURE_ENV_INIT_9(__VA_ARGS__))
-#define FUTURE_ENV_INIT_9(first, ...) .first = first,
+#define future_arg(T, name) T, name
+
+#define FUTURE_ARG_DECL_1(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_2(__VA_ARGS__))
+#define FUTURE_ARG_DECL_2(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_3(__VA_ARGS__))
+#define FUTURE_ARG_DECL_3(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_4(__VA_ARGS__))
+#define FUTURE_ARG_DECL_4(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_5(__VA_ARGS__))
+#define FUTURE_ARG_DECL_5(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_6(__VA_ARGS__))
+#define FUTURE_ARG_DECL_6(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_7(__VA_ARGS__))
+#define FUTURE_ARG_DECL_7(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_8(__VA_ARGS__))
+#define FUTURE_ARG_DECL_8(T, name, ...) T name __VA_OPT__(, FUTURE_ARG_DECL_9(__VA_ARGS__))
+#define FUTURE_ARG_DECL_9(T, name, ...) T name
+
+#define FUTURE_ARG_1(T, name, ...) name __VA_OPT__(, FUTURE_ARG_2(__VA_ARGS__))
+#define FUTURE_ARG_2(T, name, ...) name __VA_OPT__(, FUTURE_ARG_3(__VA_ARGS__))
+#define FUTURE_ARG_3(T, name, ...) name __VA_OPT__(, FUTURE_ARG_4(__VA_ARGS__))
+#define FUTURE_ARG_4(T, name, ...) name __VA_OPT__(, FUTURE_ARG_5(__VA_ARGS__))
+#define FUTURE_ARG_5(T, name, ...) name __VA_OPT__(, FUTURE_ARG_6(__VA_ARGS__))
+#define FUTURE_ARG_6(T, name, ...) name __VA_OPT__(, FUTURE_ARG_7(__VA_ARGS__))
+#define FUTURE_ARG_7(T, name, ...) name __VA_OPT__(, FUTURE_ARG_8(__VA_ARGS__))
+#define FUTURE_ARG_8(T, name, ...) name __VA_OPT__(, FUTURE_ARG_9(__VA_ARGS__))
+#define FUTURE_ARG_9(T, name, ...) name
+
+#define FUTURE_ARG_ENV_1(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_2(__VA_ARGS__))
+#define FUTURE_ARG_ENV_2(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_3(__VA_ARGS__))
+#define FUTURE_ARG_ENV_3(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_4(__VA_ARGS__))
+#define FUTURE_ARG_ENV_4(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_5(__VA_ARGS__))
+#define FUTURE_ARG_ENV_5(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_6(__VA_ARGS__))
+#define FUTURE_ARG_ENV_6(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_7(__VA_ARGS__))
+#define FUTURE_ARG_ENV_7(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_8(__VA_ARGS__))
+#define FUTURE_ARG_ENV_8(name, ...) __TASKIO_FUTURE_OUT->env.name = name __VA_OPT__(; FUTURE_ARG_ENV_9(__VA_ARGS__))
+#define FUTURE_ARG_ENV_9(name, ...) __TASKIO_FUTURE_OUT->env.name = name
 
 #define async_env(name) __TASKIO_FUTURE_OBJ->env.name
 
-#define future_fn(T, name)                                                                                             \
+#define future_fn(T, name, ...)                                                                                        \
     struct name##_future {                                                                                             \
         struct taskio_future inner;                                                                                    \
         struct name##_env env;                                                                                         \
     };                                                                                                                 \
                                                                                                                        \
-    void name##_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);           \
-                                                                                                                       \
-    struct name##_future(name)
+    struct name##_future(name)(FUTURE_ARG_DECL(__VA_ARGS__));                                                          \
+    void name##_init(struct name##_future* __VA_OPT__(, FUTURE_ARG_DECL(__VA_ARGS__)))
 
-#define future_fn_impl(T, name)                                                                                        \
-    void name##_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);           \
+#define future_fn_impl(T, name, ...)                                                                                   \
+    static void name##_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);    \
                                                                                                                        \
-    struct name##_future(name)
+    struct name##_future(name)(FUTURE_ARG_DECL(__VA_ARGS__)) {                                                         \
+        struct name##_future f = {};                                                                                   \
+        name##_init(&f __VA_OPT__(, FUTURE_ARG(__VA_ARGS__)));                                                         \
+        return f;                                                                                                      \
+    }                                                                                                                  \
+                                                                                                                       \
+    void name##_init(struct name##_future* __TASKIO_FUTURE_OUT __VA_OPT__(, FUTURE_ARG_DECL(__VA_ARGS__)))
+
+#define static_future_fn(T, name, ...)                                                                                 \
+    struct name##_future {                                                                                             \
+        struct taskio_future inner;                                                                                    \
+        struct name##_env env;                                                                                         \
+    };                                                                                                                 \
+                                                                                                                       \
+    static void name##_init(struct name##_future* __VA_OPT__(, FUTURE_ARG_DECL(__VA_ARGS__)));                         \
+    static void name##_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);    \
+                                                                                                                       \
+    static struct name##_future(name)(FUTURE_ARG_DECL(__VA_ARGS__)) {                                                  \
+        struct name##_future f = {};                                                                                   \
+        name##_init(&f __VA_OPT__(, FUTURE_ARG(__VA_ARGS__)));                                                         \
+        return f;                                                                                                      \
+    }                                                                                                                  \
+                                                                                                                       \
+    static void name##_init(struct name##_future* __TASKIO_FUTURE_OUT __VA_OPT__(, FUTURE_ARG_DECL(__VA_ARGS__)))
+
+#define return_future_fn(T, name, ...)                                                                                 \
+    __TASKIO_FUTURE_OUT->inner.poll = name##_poll;                                                                     \
+    __TASKIO_FUTURE_OUT->inner.await_future = NULL;                                                                    \
+    __TASKIO_FUTURE_OUT->inner.await_out = NULL;                                                                       \
+    __TASKIO_FUTURE_OUT->inner.counter = 0;                                                                            \
+    FUTURE_ARG_ENV(__VA_ARGS__)
 
 #define return_future_fn_obj(T, name, ...)                                                                             \
-    (struct name##_future) {                                                                                           \
-        .inner = {.poll = name##_poll, .await_future = NULL, .await_out = NULL, .counter = 0},                         \
-        .env = (struct name##_env){FUTURE_ENV_INIT(__VA_ARGS__)},                                                      \
-    }
-
-#define return_future_fn(T, name, ...) return return_future_fn_obj(T, name, __VA_ARGS__)
+    __TASKIO_FUTURE_OUT;                                                                                               \
+    return_future_fn(T, name, __VA_ARGS__)
 
 #define drop_future_fn(future)                                                                                         \
     future.inner.counter = __TASKIO_FUTURE_CLR_VAL;                                                                    \

@@ -8,7 +8,7 @@ struct foo_env {
     int local_a;
 };
 
-future_fn(int, foo)(int arg_a) { return_future_fn(int, foo, arg_a); }
+static_future_fn(int, foo, future_arg(int, arg_a)) { return_future_fn(int, foo, arg_a); }
 
 async_fn(int, foo) {
     async_fn_begin(int, foo);

@@ -12,7 +12,9 @@ struct task_env {
     future_env(taskio_sleep);
 };
 
-future_fn(void, task)(int id, uint64_t delay) { return_future_fn(void, task, id, delay); }
+static_future_fn(void, task, future_arg(int, id), future_arg(uint64_t, delay)) {
+    return_future_fn(void, task, id, delay);
+}
 
 async_fn(void, task) {
     async_fn_begin(void, task);
