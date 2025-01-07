@@ -12,6 +12,9 @@
 #define TASKIO_SINGLE_THREADED (0)
 #define TASKIO_MULTI_THREADED (-1)
 
+#define taskio_spawn_pinned(future)                                                                                    \
+    taskio_runtime_spawn(((struct taskio_worker*)__TASKIO_FUTURE_CTX->worker)->runtime, &future.inner, 0)
+
 #define taskio_spawn_with_handle(future)                                                                               \
     taskio_runtime_spawn(((struct taskio_worker*)__TASKIO_FUTURE_CTX->worker)->runtime, &future.inner, sizeof(future))
 
