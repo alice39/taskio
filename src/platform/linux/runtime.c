@@ -22,6 +22,8 @@ static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_
 static void task_add_event_loop(struct taskio_task* task);
 static void task_wake(struct taskio_waker* waker);
 
+static void task_drop(struct taskio_task* task);
+
 size_t taskio_runtime_size() { return sizeof(struct taskio_runtime); }
 
 void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
@@ -157,9 +159,7 @@ struct taskio_handle taskio_handle_clone(struct taskio_handle* handle) {
 
 void taskio_handle_drop(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
-    if (atomic_fetch_sub(&task->counter, 1) == 1) {
-        free(task);
-    }
+    task_drop(task);
 
     handle->id = 0;
     handle->task = NULL;
@@ -237,13 +237,8 @@ static int worker_run(void* arg) {
                         if (worker->handle_id == task->id) {
                             running = false;
                         }
-                        if (task->pinned) {
-                            free(task->future);
-                        }
 
-                        if (atomic_fetch_sub(&task->counter, 1) == 1) {
-                            free(task);
-                        }
+                        task_drop(task);
                         continue;
                     }
 
@@ -282,12 +277,7 @@ static int worker_run(void* arg) {
                             if (worker->handle_id == task->id) {
                                 running = false;
                             }
-                            if (task->pinned) {
-                                free(task->future);
-                            }
-                            if (atomic_fetch_sub(&task->counter, 1) == 1) {
-                                free(task);
-                            }
+                            task_drop(task);
                             break;
                         }
                         case TASKIO_FUTURE_PENDING: {
@@ -352,4 +342,14 @@ static void task_add_event_loop(struct taskio_task* task) {
 static void task_wake(struct taskio_waker* waker) {
     struct taskio_task* task = waker->data;
     task_add_event_loop(task);
+}
+
+static void task_drop(struct taskio_task* task) {
+    if (atomic_fetch_sub(&task->counter, 1) == 1) {
+        if (task->pinned) {
+            free(task->future);
+        }
+
+        free(task);
+    }
 }
