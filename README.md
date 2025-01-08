@@ -46,9 +46,6 @@ Taskio is an ongoing project, aiming to be an lazy asynchronous runtime library 
 ## Hello World in Taskio
 
 ```c
-// set taskio_main up to use a single threaded runtime
-#define TASKIO_RUNTIME SIMPLE
-
 #include <stdio.h>
 #include <taskio.h>
 

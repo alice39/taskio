@@ -1,5 +1,3 @@
-#define TASKIO_RUNTIME SIMPLE
-
 #include <stdio.h>
 
 #include <taskio.h>
