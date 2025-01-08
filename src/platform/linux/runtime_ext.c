@@ -40,7 +40,7 @@ void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio
     uint64_t time = runtime->hierarchy_wheel.wheels[0].tick * runtime->hierarchy_wheel.wheels[0].resolution;
     if (time >= timer->expiry_time) {
         timer->handler(timer->data);
-        runtime->allocator.free(timer);
+        runtime->allocator.free(runtime->allocator.data, timer);
         return;
     }
 

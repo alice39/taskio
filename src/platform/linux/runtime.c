@@ -104,7 +104,8 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
                                           size_t future_size) {
     uint64_t handle_id = next_handle_id++;
 
-    struct taskio_task* task = runtime->allocator.alloc(sizeof(struct taskio_task) + future_size);
+    struct taskio_task* task =
+        runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_task) + future_size);
 
     // handled by the user and runtime
     task->counter = 2;
@@ -208,7 +209,8 @@ void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker
         }
     }
 
-    struct taskio_task_wake_node* node = task->runtime->allocator.alloc(sizeof(struct taskio_task_wake_node));
+    struct taskio_task_wake_node* node =
+        task->runtime->allocator.alloc(task->runtime->allocator.data, sizeof(struct taskio_task_wake_node));
     node->waker = *waker;
     node->out = out;
     node->next = task->wake_on_ready_top;
@@ -294,7 +296,7 @@ static int worker_run(void* arg) {
 
                                 wake_node->waker.wake(&wake_node->waker);
 
-                                worker->runtime->allocator.free(wake_node);
+                                worker->runtime->allocator.free(worker->runtime->allocator.data, wake_node);
                                 wake_node = next_wake_node;
                             }
 
@@ -367,6 +369,6 @@ static void task_wake(struct taskio_waker* waker) {
 
 static void task_drop(struct taskio_task* task) {
     if (atomic_fetch_sub(&task->counter, 1) == 1) {
-        task->runtime->allocator.free(task);
+        task->runtime->allocator.free(task->runtime->allocator.data, task);
     }
 }

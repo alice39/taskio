@@ -9,9 +9,10 @@
 #include "taskio/async.h"
 #include "taskio/runtime.h"
 
-#define __TASKIO_MAIN_CUSTOM_ALLOC(allocator, alloc_fn, free_fn)                                                       \
+#define __TASKIO_MAIN_CUSTOM_ALLOC(allocator, alloc_fn, free_fn, data_val)                                             \
     allocator.alloc = alloc_fn;                                                                                        \
-    allocator.free = free_fn;
+    allocator.free = free_fn;                                                                                          \
+    allocator.data = data_val;
 
 #define taskio_main_env __taskio_async_main_env
 
@@ -32,7 +33,7 @@
     int main(int argc, char** args) {                                                                                  \
         taskio_stack_runtime stack_rt = {};                                                                            \
         struct taskio_runtime* rt = (struct taskio_runtime*)stack_rt;                                                  \
-        struct taskio_allocator allocator = {.alloc = malloc, .free = free};                                           \
+        struct taskio_allocator allocator = taskio_default_allocator();                                                \
         __VA_OPT__(__TASKIO_MAIN_CUSTOM_ALLOC(allocator, __VA_ARGS__))                                                 \
         taskio_runtime_init(rt, TASKIO_SINGLE_THREADED, &allocator);                                                   \
                                                                                                                        \
@@ -40,10 +41,11 @@
             struct __taskio_async_main_future future = __taskio_async_main(argc, args);                                \
             taskio_runtime_block_on(rt, &future.inner);                                                                \
         } else {                                                                                                       \
-            struct __taskio_async_main_future* future = allocator.alloc(sizeof(struct __taskio_async_main_future));    \
+            struct __taskio_async_main_future* future =                                                                \
+                allocator.alloc(allocator.data, sizeof(struct __taskio_async_main_future));                            \
             __taskio_async_main_init(future, argc, args);                                                              \
             taskio_runtime_block_on(rt, &future->inner);                                                               \
-            allocator.free(future);                                                                                    \
+            allocator.free(allocator.data, future);                                                                    \
         }                                                                                                              \
                                                                                                                        \
         taskio_runtime_drop(rt);                                                                                       \
