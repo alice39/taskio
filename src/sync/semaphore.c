@@ -25,7 +25,7 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
 
 size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore) { return semaphore->counter; }
 
-future_fn_impl(void, taskio_semaphore_wait, future_arg(struct taskio_semaphore*, semaphore)) {
+future_fn_impl(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore) {
     return_future_fn(void, taskio_semaphore_wait, semaphore);
 }
 

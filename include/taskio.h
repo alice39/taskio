@@ -4,6 +4,7 @@
 #if defined(TASKIO_RUNTIME) && TASKIO_RUNTIME == SIMPLE
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "taskio/async.h"
 #include "taskio/runtime.h"
@@ -13,8 +14,15 @@
 #define taskio_main_begin() async_fn_begin(int, __taskio_async_main)
 
 #define taskio_main()                                                                                                  \
-    static_future_fn(void, __taskio_async_main, int, argc, char**, args) {                                             \
+    static_future_fn(void, __taskio_async_main)(int argc, char** args) {                                               \
         return_future_fn(void, __taskio_async_main, argc, args);                                                       \
+    }                                                                                                                  \
+                                                                                                                       \
+    void __taskio_async_main_init(struct __taskio_async_main_future* f, int argc, char** args) {                       \
+        f->inner = return_future_fn_inner_obj(void, __taskio_async_main);                                              \
+        memset(&f->env, 0, sizeof(struct taskio_main_env));                                                            \
+        f->env.argc = argc;                                                                                            \
+        f->env.args = args;                                                                                            \
     }                                                                                                                  \
                                                                                                                        \
     int main(int argc, char** args) {                                                                                  \

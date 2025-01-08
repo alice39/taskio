@@ -16,9 +16,9 @@ struct shoot_env {
     struct taskio_semaphore* sem;
 };
 
-static_future_fn(void, listener, future_arg(struct taskio_semaphore*, sem)) { return_future_fn(void, listener, sem); }
+static_future_fn(void, listener)(struct taskio_semaphore* sem) { return_future_fn(void, listener, sem); }
 
-static_future_fn(void, shoot, future_arg(struct taskio_semaphore*, sem)) { return_future_fn(void, shoot, sem); }
+static_future_fn(void, shoot)(struct taskio_semaphore* sem) { return_future_fn(void, shoot, sem); }
 
 async_fn(void, listener) {
     async_fn_begin(void, listener);

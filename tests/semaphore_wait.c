@@ -13,7 +13,7 @@ struct wait_task_env {
     future_env(taskio_semaphore_wait, taskio_sleep);
 };
 
-static_future_fn(void, wait_task, future_arg(struct taskio_semaphore*, sem), future_arg(uint64_t, delay)) {
+static_future_fn(void, wait_task)(struct taskio_semaphore* sem, uint64_t delay) {
     return_future_fn(void, wait_task, sem, delay);
 }
 

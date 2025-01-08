@@ -4,7 +4,7 @@
 
 static void taskio_sleep_handler(void*);
 
-future_fn_impl(void, taskio_sleep, future_arg(uint64_t, ms)) { return_future_fn(void, taskio_sleep, ms); }
+future_fn_impl(void, taskio_sleep)(uint64_t ms) { return_future_fn(void, taskio_sleep, ms); }
 
 async_fn(void, taskio_sleep) {
     async_fn_begin(void, taskio_sleep);

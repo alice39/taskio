@@ -30,8 +30,8 @@ struct taskio_join_env {
     struct taskio_join_task* poll_tail;
 };
 
-future_fn(void, taskio_sleep, future_arg(uint64_t, ms));
-future_fn(void, taskio_join, future_arg(size_t, len), future_arg(, ...));
+future_fn(void, taskio_sleep)(uint64_t ms);
+future_fn(void, taskio_join)(size_t len, ...);
 
 struct taskio_join_future taskio_join_from_list(size_t len, struct taskio_future** futures);
 
