@@ -233,9 +233,7 @@ static int worker_run(void* arg) {
                     task->next = NULL;
 
                     if (task->status == taskio_task_aborted) {
-                        // cleanup process
-                        task->future->counter = __TASKIO_FUTURE_CLR_VAL;
-                        task->future->poll(task->future, NULL, NULL, NULL);
+                        __TASKIO_FUTURE_CLEANUP(task->future);
 
                         if (worker->handle_id == task->id) {
                             running = false;
@@ -269,9 +267,7 @@ static int worker_run(void* arg) {
                             break;
                         }
                         case taskio_future_ready: {
-                            // cleanup process
-                            task->future->counter = __TASKIO_FUTURE_CLR_VAL;
-                            task->future->poll(task->future, NULL, NULL, NULL);
+                            __TASKIO_FUTURE_CLEANUP(task->future);
 
                             task->status = taskio_task_finished;
 

@@ -75,10 +75,8 @@ async_fn(void, taskio_join) {
                 continue;
             }
 
+            __TASKIO_FUTURE_CLEANUP(future);
             completed_len -= 1;
-
-            future->counter = __TASKIO_FUTURE_CLR_VAL;
-            future->poll(future, NULL, NULL, NULL);
         }
 
         async_env(allocator).free(async_env(allocator).data, head);
@@ -113,11 +111,9 @@ async_fn(void, taskio_join) {
                     break;
                 }
                 case taskio_future_ready: {
+                    __TASKIO_FUTURE_CLEANUP(join_task->future);
+
                     async_env(completed_len) += 1;
-
-                    join_task->future->counter = __TASKIO_FUTURE_CLR_VAL;
-                    join_task->future->poll(join_task->future, NULL, NULL, NULL);
-
                     join_task->future = NULL;
                     break;
                 }
