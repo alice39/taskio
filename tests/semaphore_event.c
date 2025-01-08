@@ -24,7 +24,7 @@ async_fn(void, listener) {
     }
 
     async_scope() {
-        printf("listener: sleeping 4 seconds.\n");
+        printf("listener: sleeping for 4 seconds.\n");
         await_fn(taskio_sleep, 4000);
     }
 

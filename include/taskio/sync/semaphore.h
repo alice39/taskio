@@ -22,6 +22,12 @@ struct taskio_semaphore {
 
     struct taskio_allocator allocator;
 
+    mtx_t blocking_wake_mtx;
+    cnd_t blocking_wake_cnd;
+    size_t blocking_wake_wait;
+    size_t blocking_wake_signal;
+    size_t blocking_wake_priority;
+
     mtx_t wake_guard;
     struct taskio_semaphore_node* wake_queue_head;
     struct taskio_semaphore_node* wake_queue_tail;
@@ -40,6 +46,7 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore);
 size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore);
 
 future_fn(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore);
+void taskio_semaphore_blocking_wait(struct taskio_semaphore* semaphore);
 void taskio_semaphore_signal(struct taskio_semaphore* semaphore);
 
 #endif // TASKIO_SYNC_SEMAPHORE_GUARD_HEADER
