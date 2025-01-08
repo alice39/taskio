@@ -1,7 +1,7 @@
 #ifndef TASKIO_ASYNC_GUARD_HEADER
 #define TASKIO_ASYNC_GUARD_HEADER
 
-#include "future.h"
+#include <taskio/future.h>
 
 #define __TASKIO_FUTURE_OBJ_ANY __taskio_future
 #define __TASKIO_FUTURE_OBJ __taskio_future_own

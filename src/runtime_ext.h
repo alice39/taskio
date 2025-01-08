@@ -1,8 +1,11 @@
 #ifndef TASKIO_RUNTIME_EXT_GUARD_HEADER
 #define TASKIO_RUNTIME_EXT_GUARD_HEADER
 
-#include "wheel.h"
+#include <stdint.h>
+
 #include <taskio/runtime.h>
+
+#include "wheel.h"
 
 struct taskio_timer* taskio_runtime_add_timer(struct taskio_runtime* runtime, uint64_t delay,
                                               taskio_wheel_handler handler, void* data);

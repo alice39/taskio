@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "taskio/async.h"
-#include "taskio/runtime.h"
+#include <taskio/async.h>
+#include <taskio/runtime.h>
 
 #define __TASKIO_MAIN_CUSTOM_ALLOC(allocator, alloc_fn, free_fn, data_val)                                             \
     allocator.alloc = alloc_fn;                                                                                        \

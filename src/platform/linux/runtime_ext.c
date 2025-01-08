@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include "../../runtime_ext.h"
 #include "runtime_platform.h"
 

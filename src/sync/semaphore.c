@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include <taskio/sync/semaphore.h>
 
 void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, size_t permits,

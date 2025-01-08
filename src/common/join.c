@@ -1,8 +1,6 @@
-#include <taskio/common.h>
-
 #include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include <taskio/common.h>
 
 struct taskio_join_task {
     struct taskio_future* future;

@@ -1,14 +1,12 @@
 #ifndef TASKIO_RUNTIME_GUARD_HEADER
 #define TASKIO_RUNTIME_GUARD_HEADER
 
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <threads.h>
 
-#include "alloc.h"
-#include "future.h"
+#include <taskio/alloc.h>
+#include <taskio/future.h>
 
 #define TASKIO_SINGLE_THREADED (0)
 #define TASKIO_MULTI_THREADED (-1)

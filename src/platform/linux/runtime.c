@@ -1,14 +1,13 @@
-#include <taskio/async.h>
-#include <taskio/runtime.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
 #include <sys/unistd.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <taskio/async.h>
+#include <taskio/runtime.h>
 
 #include "runtime_platform.h"
 

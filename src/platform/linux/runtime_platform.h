@@ -1,6 +1,9 @@
 #ifndef TASKIO_RUNTIME_PLATFORM_GUARD_HEADER
 #define TASKIO_RUNTIME_PLATFORM_GUARD_HEADER
 
+#include <stdatomic.h>
+#include <threads.h>
+
 #include "../../runtime_ext.h"
 #include "../../wheel.h"
 

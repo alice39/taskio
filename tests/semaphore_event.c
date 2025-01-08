@@ -1,7 +1,6 @@
 #define TASKIO_RUNTIME SIMPLE
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <taskio.h>
 #include <taskio/common.h>
