@@ -43,6 +43,37 @@ Taskio is an ongoing project, aiming to be an lazy asynchronous runtime library 
 - **TCP:** ❌
 - **UDP:** ❌
 
+## Hello World in Taskio
+
+```c
+// set taskio_main up to use a single threaded runtime
+#define TASKIO_RUNTIME SIMPLE
+
+#include <stdio.h>
+#include <taskio.h>
+
+// environment used by your async main
+struct taskio_main_env {
+    int argc;
+    char** args;
+};
+
+// entry point for your async main
+taskio_main() {
+    // begin point for your main function
+    taskio_main_begin();
+
+    // scope to handle a single yield, suspended_yield, await*
+    // and async_return at the end
+    async_scope() {
+        printf("Hello World\n");
+
+        // finish the async main
+        async_return();
+    }
+}
+```
+
 ## License
 
 Taskio is distributed under the [MIT License](https://opensource.org/licenses/MIT).
