@@ -26,7 +26,7 @@ Taskio is an ongoing project, aiming to be an lazy asynchronous runtime library 
 
 ### Synchronization Primitives
 - **Semaphore:** ✅
-- **Mutex:** ❌
+- **Mutex:** ✅
 - **RwLock:** ❌
 - **Notify:** ❌
 - **Barrier:** ❌
