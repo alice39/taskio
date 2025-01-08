@@ -10,7 +10,7 @@ struct foo_env {
 
 static_future_fn(int, foo)(int arg_a) { return_future_fn(int, foo, arg_a); }
 
-async_fn(int, foo) {
+static async_fn(int, foo) {
     async_fn_begin(int, foo);
 
     async_scope() {

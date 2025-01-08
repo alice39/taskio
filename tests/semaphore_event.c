@@ -20,7 +20,7 @@ static_future_fn(void, listener)(struct taskio_semaphore* sem) { return_future_f
 
 static_future_fn(void, shoot)(struct taskio_semaphore* sem) { return_future_fn(void, shoot, sem); }
 
-async_fn(void, listener) {
+static async_fn(void, listener) {
     async_fn_begin(void, listener);
 
     async_scope() {
@@ -36,7 +36,7 @@ async_fn(void, listener) {
     async_scope() { async_return(); }
 }
 
-async_fn(void, shoot) {
+static async_fn(void, shoot) {
     async_fn_begin(void, shoot);
 
     async_scope() {
