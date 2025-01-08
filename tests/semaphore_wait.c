@@ -17,9 +17,7 @@ static_future_fn(void, wait_task)(struct taskio_semaphore* sem, uint64_t delay) 
     return_future_fn(void, wait_task, sem, delay);
 }
 
-static async_fn(void, wait_task) {
-    async_fn_begin(void, wait_task);
-
+async_fn(void, wait_task) {
     struct taskio_semaphore* sem = async_env(sem);
     uint64_t delay = async_env(delay);
 
@@ -52,8 +50,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     struct taskio_semaphore* sem = &async_env(sem);
 
     async_scope() {

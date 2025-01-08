@@ -18,8 +18,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope() {
         for (size_t i = 0; i < COUNT; i++) {
             async_env(futures)[i] = taskio_sleep(1000);

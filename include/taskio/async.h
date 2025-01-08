@@ -114,13 +114,24 @@
     future.inner.poll(&future.inner, NULL, NULL, NULL);
 
 #define async_fn(T, name)                                                                                              \
-    void name##_poll(struct taskio_future* __TASKIO_FUTURE_OBJ_ANY, struct taskio_future_context* __TASKIO_FUTURE_CTX, \
-                     enum taskio_future_poll* __TASKIO_FUTURE_POL, void* __TASKIO_FUTURE_VAL_ANY)
+    static void name##_poll1(                                                                                          \
+        struct name##_future* __TASKIO_FUTURE_OBJ, struct taskio_future_context* __TASKIO_FUTURE_CTX,                  \
+        enum taskio_future_poll* __TASKIO_FUTURE_POL, T* __TASKIO_FUTURE_VAL, size_t __TASKIO_FUTURE_CON);             \
+                                                                                                                       \
+    static void name##_poll(struct taskio_future* __TASKIO_FUTURE_OBJ_ANY,                                             \
+                            struct taskio_future_context* __TASKIO_FUTURE_CTX,                                         \
+                            enum taskio_future_poll* __TASKIO_FUTURE_POL, void* __TASKIO_FUTURE_VAL_ANY) {             \
+        async_fn_begin(T, name);                                                                                       \
+        name##_poll1(__TASKIO_FUTURE_OBJ, __TASKIO_FUTURE_CTX, __TASKIO_FUTURE_POL, __TASKIO_FUTURE_VAL_ANY, 0);       \
+    }                                                                                                                  \
+                                                                                                                       \
+    static void name##_poll1(struct name##_future* __TASKIO_FUTURE_OBJ,                                                \
+                             [[maybe_unused]] struct taskio_future_context* __TASKIO_FUTURE_CTX,                       \
+                             enum taskio_future_poll* __TASKIO_FUTURE_POL, [[maybe_unused]] T* __TASKIO_FUTURE_VAL,    \
+                             size_t __TASKIO_FUTURE_CON)
 
 #define async_fn_begin(T, name)                                                                                        \
     struct name##_future* __TASKIO_FUTURE_OBJ = (struct name##_future*)__TASKIO_FUTURE_OBJ_ANY;                        \
-    [[maybe_unused]] T* __TASKIO_FUTURE_VAL = __TASKIO_FUTURE_VAL_ANY;                                                 \
-    size_t __TASKIO_FUTURE_CON = 0;                                                                                    \
                                                                                                                        \
     struct taskio_future* __TASKIO_TASK_OBJ = __TASKIO_FUTURE_OBJ->inner.await_future;                                 \
     void* __TASKIO_TASK_VAL = __TASKIO_FUTURE_OBJ->inner.await_out;                                                    \

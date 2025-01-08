@@ -7,8 +7,6 @@ static void taskio_sleep_handler(void*);
 future_fn_impl(void, taskio_sleep)(uint64_t ms) { return_future_fn(void, taskio_sleep, ms); }
 
 async_fn(void, taskio_sleep) {
-    async_fn_begin(void, taskio_sleep);
-
     async_cleanup() {
         struct taskio_timer* timer = async_env(timer);
         if (timer) {

@@ -19,9 +19,7 @@ static_future_fn(void, listener)(struct taskio_semaphore* sem) { return_future_f
 
 static_future_fn(void, shoot)(struct taskio_semaphore* sem) { return_future_fn(void, shoot, sem); }
 
-static async_fn(void, listener) {
-    async_fn_begin(void, listener);
-
+async_fn(void, listener) {
     async_scope() {
         printf("listener: wait\n");
         await_fn(taskio_semaphore_wait, async_env(sem));
@@ -35,9 +33,7 @@ static async_fn(void, listener) {
     async_scope() { async_return(); }
 }
 
-static async_fn(void, shoot) {
-    async_fn_begin(void, shoot);
-
+async_fn(void, shoot) {
     async_scope() {
         printf("shoot: signal\n");
         taskio_semaphore_signal(async_env(sem));
@@ -57,8 +53,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     struct taskio_semaphore* sem = &async_env(sem);
 
     async_scope() {

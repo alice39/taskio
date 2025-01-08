@@ -11,9 +11,7 @@ struct foo_env {
 
 static_future_fn(int, foo)(int arg_a) { return_future_fn(int, foo, arg_a); }
 
-static async_fn(int, foo) {
-    async_fn_begin(int, foo);
-
+async_fn(int, foo) {
     async_scope() {
         int arg_a = async_env(arg_a);
         int local_a = async_env(local_a) = 1;
@@ -40,8 +38,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope() {
         async_env(a) = 1;
         printf("main: before yield: %d\n", async_env(a));

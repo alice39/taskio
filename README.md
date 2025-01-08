@@ -60,9 +60,6 @@ struct taskio_main_env {
 
 // entry point for your async main
 taskio_main() {
-    // begin point for your main function
-    taskio_main_begin();
-
     // scope to handle a single yield, suspended_yield, await*
     // and async_return at the end
     async_scope() {

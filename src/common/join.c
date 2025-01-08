@@ -64,8 +64,6 @@ struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocat
 }
 
 async_fn(void, taskio_join) {
-    async_fn_begin(void, taskio_join);
-
     async_cleanup() {
         struct taskio_join_task* head = async_env(head);
         size_t len = async_env(len);

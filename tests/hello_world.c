@@ -10,8 +10,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope() {
         printf("Hello World\n");
         async_return();

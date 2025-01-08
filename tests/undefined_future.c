@@ -11,9 +11,8 @@ struct foo_env {
 
 static_future_fn(void, foo)() { return_future_fn(void, foo); }
 
-static async_fn(void, foo) {
-    async_fn_begin(void, foo);
-    async_scope() {}
+async_fn(void, foo) {
+    async_scope() { yield(); }
 }
 
 struct taskio_main_env {
@@ -24,8 +23,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope() {
 #ifndef TASKIO_TRACING
         fprintf(stderr, "main: TASKIO_TRACING feature has not been enabled\n");

@@ -14,9 +14,7 @@ struct task_env {
 
 static_future_fn(void, task)(int id, uint64_t delay) { return_future_fn(void, task, id, delay); }
 
-static async_fn(void, task) {
-    async_fn_begin(void, task);
-
+async_fn(void, task) {
     async_cleanup() { printf("task %d: cleaned up\n", async_env(id)); }
 
     async_scope() {
@@ -40,8 +38,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope() {
         struct task_future f1 = task(1, 1000);
         struct task_future f2 = task(2, 3000);

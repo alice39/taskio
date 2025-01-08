@@ -31,8 +31,6 @@ struct taskio_allocator with_allocator() {
 }
 
 taskio_main(with_allocator()) {
-    taskio_main_begin();
-
     async_scope() {
         printf("Hello World\n");
         async_return();

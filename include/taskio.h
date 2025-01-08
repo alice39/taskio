@@ -10,8 +10,6 @@
 
 #define taskio_main_env __taskio_async_main_env
 
-#define taskio_main_begin() async_fn_begin(int, __taskio_async_main)
-
 #define taskio_main(...)                                                                                               \
     static_future_fn(void, __taskio_async_main)(int argc, char** args) {                                               \
         return_future_fn(void, __taskio_async_main, argc, args);                                                       \

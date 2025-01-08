@@ -36,8 +36,6 @@ future_fn_impl(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore) 
 }
 
 async_fn(void, taskio_semaphore_wait) {
-    async_fn_begin(void, taskio_semaphore_wait);
-
     struct taskio_semaphore* semaphore = async_env(semaphore);
 
     async_scope() {

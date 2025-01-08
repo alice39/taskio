@@ -14,8 +14,6 @@ struct taskio_main_env {
 };
 
 taskio_main() {
-    taskio_main_begin();
-
     async_scope_while(async_env(i) < 5) {
         printf("main: sleeping for 500ms (%lu)\n", async_env(i));
 
