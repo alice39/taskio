@@ -13,10 +13,11 @@
 
 static __thread uint64_t next_handle_id = 1;
 
+static void _wheel_setup(struct taskio_runtime*);
 static int worker_run(void* arg);
 
 static void _wheel_loop(struct taskio_wheel_timer* wheel_timer);
-static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer);
+static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer, bool has_remaining_ticks);
 
 static void task_add_event_loop(struct taskio_task* task);
 static void task_wake(struct taskio_waker* waker);
@@ -54,10 +55,12 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, str
     runtime->timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
     runtime->epoll_fd = epoll_create1(0);
 
+    _wheel_setup(runtime);
+
     timerfd_settime(runtime->timer_fd, 0,
                     &(struct itimerspec){
-                        .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
-                        .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                        .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
+                        .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
                     },
                     NULL);
 
@@ -66,23 +69,6 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, str
 
     epoll_ctl(runtime->epoll_fd, EPOLL_CTL_ADD, runtime->timer_fd,
               &(struct epoll_event){.events = EPOLLIN, .data.fd = runtime->timer_fd});
-
-    struct taskio_wheel_timer* wheels = runtime->hierarchy_wheel.wheels;
-    struct taskio_timer** timer_buckets = runtime->hierarchy_wheel.buckets;
-
-    taskio_wheel_timer_init(&wheels[0], allocator, 0, 1, 10, &timer_buckets[0], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[1], allocator, 1, 10, 10, &timer_buckets[10], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[2], allocator, 2, 100, 10, &timer_buckets[20], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[3], allocator, 3, 1000, 60, &timer_buckets[30], _wheel_loop, _wheel_expiry,
-                            runtime);
-    taskio_wheel_timer_init(&wheels[4], allocator, 4, 60000, 60, &timer_buckets[90], _wheel_loop, _wheel_expiry,
-                            runtime);
-    taskio_wheel_timer_init(&wheels[5], allocator, 5, 3600000, 24, &timer_buckets[150], _wheel_loop, _wheel_expiry,
-                            runtime);
-    taskio_wheel_timer_init(&wheels[6], allocator, 6, 86400000, 365, &timer_buckets[174], _wheel_loop, _wheel_expiry,
-                            runtime);
-    taskio_wheel_timer_init(&wheels[7], allocator, 7, 31536000000, 4, &timer_buckets[539], NULL, _wheel_expiry,
-                            runtime);
 
     runtime->poll_scheduled = false;
     runtime->poll_head = NULL;
@@ -328,14 +314,53 @@ static int worker_run(void* arg) {
     return 0;
 }
 
+static void _wheel_setup(struct taskio_runtime* runtime) {
+    struct taskio_wheel_timer* wheels = runtime->hierarchy_wheel.wheels;
+    struct taskio_timer** buckets = runtime->hierarchy_wheel.buckets;
+
+    runtime->hierarchy_wheel.timer_len = 0;
+
+    uint64_t resolutions[WHEEL_LEVEL_SIZE] = {1, 10, 100, 1000, 60000, 3600000, 86400000, 31536000000};
+    size_t lengths[WHEEL_LEVEL_SIZE] = {10, 10, 10, 60, 60, 24, 365, 4};
+
+    for (size_t i = 0; i < WHEEL_LEVEL_SIZE; i++) {
+        wheels[i].allocator = runtime->allocator;
+
+        wheels[i].tick = 0;
+        wheels[i].id = i;
+
+        wheels[i].resolution = resolutions[i];
+
+        wheels[i].wheel_size = lengths[i];
+        wheels[i].timer_buckets = buckets;
+
+        wheels[i].loop_handler = _wheel_loop;
+        wheels[i].expiry_handler = _wheel_expiry;
+        wheels[i].data = runtime;
+    }
+}
+
 static void _wheel_loop(struct taskio_wheel_timer* wheel_timer) {
     struct taskio_runtime* runtime = wheel_timer->data;
     taskio_wheel_timer_tick(&runtime->hierarchy_wheel.wheels[wheel_timer->id + 1]);
 }
 
-static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer) {
+static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer,
+                          bool has_remaining_ticks) {
     struct taskio_runtime* runtime = wheel_timer->data;
-    taskio_runtime_add_timer_from(runtime, timer);
+    if (has_remaining_ticks) {
+        taskio_runtime_add_timer_from(runtime, timer, true);
+    } else {
+        // disarms the timer when there is no timers in the wheels
+        if (atomic_fetch_sub(&runtime->hierarchy_wheel.timer_len, 1) == 1) {
+            timerfd_settime(runtime->timer_fd, 0,
+                            &(struct itimerspec){
+                                .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
+                                .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
+                            },
+                            NULL);
+        }
+    }
 }
 
 static void task_add_event_loop(struct taskio_task* task) {

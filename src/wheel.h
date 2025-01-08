@@ -11,8 +11,9 @@ struct taskio_wheel_timer;
 struct taskio_timer;
 
 typedef void (*taskio_wheel_handler)(void* data);
-typedef void (*taskio_wheel_loop_handler)(struct taskio_wheel_timer*);
-typedef void (*taskio_wheel_expiry_handler)(struct taskio_wheel_timer*, struct taskio_timer*);
+typedef void (*taskio_wheel_loop_handler)(struct taskio_wheel_timer* wheel_timer);
+typedef void (*taskio_wheel_expiry_handler)(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer,
+                                            bool has_remaining_ticks);
 
 struct taskio_timer {
     struct taskio_allocator allocator;
@@ -44,10 +45,6 @@ struct taskio_wheel_timer {
     void* data;
 };
 
-void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, struct taskio_allocator* allocator, size_t id,
-                             uint64_t resolution, size_t len, struct taskio_timer** buckets,
-                             taskio_wheel_loop_handler loop_handler, taskio_wheel_expiry_handler expiry_handler,
-                             void* data);
 void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer);
 
 struct taskio_timer* taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_timer, uint64_t delay,

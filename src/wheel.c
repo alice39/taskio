@@ -1,24 +1,5 @@
 #include "wheel.h"
 
-void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, struct taskio_allocator* allocator, size_t id,
-                             uint64_t resolution, size_t len, struct taskio_timer** buckets,
-                             taskio_wheel_loop_handler loop_handler, taskio_wheel_expiry_handler expiry_handler,
-                             void* data) {
-    wheel_timer->allocator = *allocator;
-
-    wheel_timer->tick = 0;
-    wheel_timer->id = id;
-
-    wheel_timer->resolution = resolution;
-
-    wheel_timer->wheel_size = len;
-    wheel_timer->timer_buckets = buckets;
-
-    wheel_timer->loop_handler = loop_handler;
-    wheel_timer->expiry_handler = expiry_handler;
-    wheel_timer->data = data;
-}
-
 void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer) {
     for (size_t i = 0; i < wheel_timer->wheel_size; i++) {
         struct taskio_timer* timer = wheel_timer->timer_buckets[i];
@@ -102,9 +83,11 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
             timer->bucket = NULL;
             timer->handler(timer->data);
 
+            wheel_timer->expiry_handler(wheel_timer, timer, false);
+
             taskio_timer_drop(timer);
         } else if (wheel_timer->expiry_handler) {
-            wheel_timer->expiry_handler(wheel_timer, timer);
+            wheel_timer->expiry_handler(wheel_timer, timer, true);
         } else {
             timer->next = expired_timer_head;
             expired_timer_head = timer;

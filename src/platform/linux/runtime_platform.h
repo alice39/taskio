@@ -7,6 +7,8 @@
 #include "../../runtime_ext.h"
 #include "../../wheel.h"
 
+#define WHEEL_LEVEL_SIZE 8
+
 struct taskio_task_wake_node {
     struct taskio_waker waker;
     void* out;
@@ -37,10 +39,13 @@ struct taskio_task {
 };
 
 struct taskio_hierarchy_wheel_timer {
+    // count how many timers there are in total
+    atomic_size_t timer_len;
+
     // bucket size is measured by each wheel len:
     // 10 + 10 + 10 + 60 + 60 + 24 + 365 + 4
     struct taskio_timer* buckets[543];
-    struct taskio_wheel_timer wheels[8];
+    struct taskio_wheel_timer wheels[WHEEL_LEVEL_SIZE];
 };
 
 struct taskio_worker {
