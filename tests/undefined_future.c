@@ -27,12 +27,16 @@ taskio_main() {
     taskio_main_begin();
 
     async_scope() {
+#ifndef TASKIO_TRACING
+        fprintf(stderr, "main: TASKIO_TRACING feature has not been enabled\n");
+#endif
+
         printf("main: waiting for foo\n");
         await_fn(foo);
     }
 
     async_scope() {
-        printf("main: this should be reached\n");
+        printf("main: this should not be reached\n");
         async_return();
     }
 }
