@@ -1,5 +1,3 @@
-#define TASKIO_RUNTIME SIMPLE
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -10,7 +8,16 @@ struct taskio_main_env {
     char** args;
 };
 
-void* print_alloc(void* data, size_t bytes) {
+struct taskio_allocator custom_allocator();
+
+taskio_main(.allocator = custom_allocator()) {
+    async_scope() {
+        printf("Hello World\n");
+        async_return();
+    }
+}
+
+static void* print_alloc(void* data, size_t bytes) {
     void* ptr = malloc(bytes);
 
     const char* data_value = data;
@@ -19,20 +26,13 @@ void* print_alloc(void* data, size_t bytes) {
     return ptr;
 }
 
-void print_free(void* data, void* ptr) {
+static void print_free(void* data, void* ptr) {
     const char* data_value = data;
     printf("free: %p with data %p (%s)\n", ptr, data, data_value);
 
     free(ptr);
 }
 
-struct taskio_allocator with_allocator() {
+struct taskio_allocator custom_allocator() {
     return (struct taskio_allocator){.alloc = print_alloc, .free = print_free, .data = "custom-alloc"};
-}
-
-taskio_main(with_allocator()) {
-    async_scope() {
-        printf("Hello World\n");
-        async_return();
-    }
 }
