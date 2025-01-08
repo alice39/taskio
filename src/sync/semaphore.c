@@ -122,8 +122,6 @@ void taskio_semaphore_blocking_wait(struct taskio_semaphore* semaphore) {
 }
 
 void taskio_semaphore_signal(struct taskio_semaphore* semaphore) {
-    semaphore->counter += 1;
-
     mtx_lock(&semaphore->wake_guard);
     mtx_lock(&semaphore->blocking_wake_mtx);
 
@@ -140,6 +138,8 @@ void taskio_semaphore_signal(struct taskio_semaphore* semaphore) {
         _signal_async(semaphore);
     } else if (semaphore->blocking_wake_wait > 0) {
         _signal_sync(semaphore);
+    } else {
+        semaphore->counter += 1;
     }
 
     mtx_unlock(&semaphore->blocking_wake_mtx);
