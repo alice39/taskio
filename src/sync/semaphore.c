@@ -50,6 +50,13 @@ future_fn_impl(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore) 
 async_fn(void, taskio_semaphore_wait) {
     struct taskio_semaphore* semaphore = async_env(semaphore);
 
+    async_cleanup() {
+        struct taskio_semaphore_node* node = async_env(node);
+        if (node != NULL && atomic_fetch_sub(&node->counter, 1) == 1) {
+            semaphore->allocator.free(semaphore->allocator.data, node);
+        }
+    }
+
     async_scope() {
         size_t current_value = 0;
 
@@ -87,14 +94,7 @@ async_fn(void, taskio_semaphore_wait) {
         async_return();
     }
 
-    async_scope() {
-        struct taskio_semaphore_node* node = async_env(node);
-        if (atomic_fetch_sub(&node->counter, 1) == 1) {
-            semaphore->allocator.free(semaphore->allocator.data, node);
-        }
-
-        async_return();
-    }
+    async_scope() { async_return(); }
 }
 
 void taskio_semaphore_blocking_wait(struct taskio_semaphore* semaphore) {
