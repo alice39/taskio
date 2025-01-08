@@ -149,7 +149,8 @@
             switch (__TASKIO_TASK_POL) {                                                                               \
                 case taskio_future_undefined: {                                                                        \
                     TASKIO_TRACE_UNDEFINED(&__TASKIO_FUTURE_OBJ->inner);                                               \
-                    break;                                                                                             \
+                    __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                           \
+                    suspended_yield();                                                                                 \
                 }                                                                                                      \
                 case taskio_future_pending: {                                                                          \
                     __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                           \
