@@ -1,10 +1,11 @@
-#include <stdlib.h>
-
 #include "wheel.h"
 
-void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, size_t id, uint64_t resolution, size_t len,
-                             struct taskio_timer** buckets, taskio_wheel_loop_handler loop_handler,
-                             taskio_wheel_expiry_handler expiry_handler, void* data) {
+void taskio_wheel_timer_init(struct taskio_wheel_timer* wheel_timer, struct taskio_allocator* allocator, size_t id,
+                             uint64_t resolution, size_t len, struct taskio_timer** buckets,
+                             taskio_wheel_loop_handler loop_handler, taskio_wheel_expiry_handler expiry_handler,
+                             void* data) {
+    wheel_timer->allocator = *allocator;
+
     wheel_timer->tick = 0;
     wheel_timer->id = id;
 
@@ -23,7 +24,7 @@ void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer) {
         struct taskio_timer* timer = wheel_timer->timer_buckets[i];
         while (timer) {
             struct taskio_timer* next_timer = timer->next;
-            free(timer);
+            wheel_timer->allocator.free(timer);
             timer = next_timer;
         }
     }
@@ -48,7 +49,8 @@ struct taskio_timer* taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_tim
         return NULL;
     }
 
-    struct taskio_timer* timer = malloc(sizeof(struct taskio_timer));
+    struct taskio_timer* timer = wheel_timer->allocator.alloc(sizeof(struct taskio_timer));
+    timer->allocator = wheel_timer->allocator;
     // timer is handled by the user and the wheel
     timer->counter = 2;
     timer->expiry_time = wheel_timer->tick * wheel_timer->resolution + delay;
@@ -131,7 +133,7 @@ void taskio_timer_clone(struct taskio_timer* timer) { timer->counter++; }
 
 void taskio_timer_drop(struct taskio_timer* timer) {
     if (atomic_fetch_sub(&timer->counter, 1) == 1) {
-        free(timer);
+        timer->allocator.free(timer);
     }
 }
 

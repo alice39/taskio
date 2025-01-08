@@ -49,6 +49,8 @@ struct taskio_worker {
 };
 
 struct taskio_runtime {
+    struct taskio_allocator allocator;
+
     size_t worker_size;
     struct taskio_worker workers[24];
 

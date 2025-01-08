@@ -69,6 +69,8 @@
                                                                                                                        \
     struct name##_future(name)
 
+#define heap_future_fn(T, name) future_fn(T, name)
+
 #define future_fn_impl(T, name, ...)                                                                                   \
     static void name##_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);    \
                                                                                                                        \

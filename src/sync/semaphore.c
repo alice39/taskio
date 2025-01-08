@@ -2,12 +2,24 @@
 
 #include <taskio/sync/semaphore.h>
 
-void taskio_semaphore_init(struct taskio_semaphore* semaphore, size_t permits) {
+void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, size_t permits,
+                                      struct taskio_allocator* allocator) {
     semaphore->counter = permits;
+
+    semaphore->allocator = *allocator;
 
     mtx_init(&semaphore->wake_guard, mtx_plain);
     semaphore->wake_queue_head = NULL;
     semaphore->wake_queue_tail = NULL;
+}
+
+void taskio_semaphore_init(struct taskio_semaphore* semaphore, size_t permits) {
+    struct taskio_allocator allocator = {
+        .alloc = malloc,
+        .free = free,
+    };
+
+    taskio_semaphore_init_with_alloc(semaphore, permits, &allocator);
 }
 
 void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
@@ -15,7 +27,7 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
     while (node) {
         struct taskio_semaphore_node* next = node->next;
         if (atomic_fetch_sub(&node->counter, 1) == 1) {
-            free(node);
+            semaphore->allocator.free(node);
         }
         node = next;
     }
@@ -32,9 +44,9 @@ future_fn_impl(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore) 
 async_fn(void, taskio_semaphore_wait) {
     async_fn_begin(void, taskio_semaphore_wait);
 
-    async_scope() {
-        struct taskio_semaphore* semaphore = async_env(semaphore);
+    struct taskio_semaphore* semaphore = async_env(semaphore);
 
+    async_scope() {
         size_t current_value = 0;
 
         do {
@@ -45,7 +57,8 @@ async_fn(void, taskio_semaphore_wait) {
         } while (!atomic_compare_exchange_weak(&semaphore->counter, &current_value, current_value - 1));
 
         if (current_value == 0) {
-            struct taskio_semaphore_node* node = async_env(node) = malloc(sizeof(struct taskio_semaphore_node));
+            struct taskio_semaphore_node* node = async_env(node) =
+                semaphore->allocator.alloc(sizeof(struct taskio_semaphore_node));
 
             mtx_lock(&semaphore->wake_guard);
 
@@ -73,7 +86,7 @@ async_fn(void, taskio_semaphore_wait) {
     async_scope() {
         struct taskio_semaphore_node* node = async_env(node);
         if (atomic_fetch_sub(&node->counter, 1) == 1) {
-            free(node);
+            semaphore->allocator.free(node);
         }
 
         async_return();
@@ -98,7 +111,7 @@ void taskio_semaphore_signal(struct taskio_semaphore* semaphore) {
     if (node) {
         node->waker.wake(&node->waker);
         if (atomic_fetch_sub(&node->counter, 1) == 1) {
-            free(node);
+            semaphore->allocator.free(node);
         }
     }
 }

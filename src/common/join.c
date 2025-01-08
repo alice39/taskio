@@ -15,9 +15,11 @@ static void _join_wake(struct taskio_waker* waker);
 
 static void taskio_join_poll(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);
 
-future_fn_impl(void, taskio_join)(size_t len, ...) {
-    struct taskio_join_task* head = malloc(sizeof(struct taskio_join_task) * len);
+future_fn_impl(void, taskio_join)(struct taskio_allocator* allocator, size_t len, ...) {
+    struct taskio_join_task* head = allocator->alloc(sizeof(struct taskio_join_task) * len);
     struct taskio_join_future future = return_future_fn_obj(void, taskio_join, len, head);
+
+    future.env.allocator = *allocator;
 
     va_list args;
     va_start(args);
@@ -40,9 +42,12 @@ future_fn_impl(void, taskio_join)(size_t len, ...) {
     return future;
 }
 
-struct taskio_join_future taskio_join_from_list(size_t len, struct taskio_future** futures) {
-    struct taskio_join_task* head = malloc(sizeof(struct taskio_join_task) * len);
+struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocator, size_t len,
+                                                struct taskio_future** futures) {
+    struct taskio_join_task* head = allocator->alloc(sizeof(struct taskio_join_task) * len);
     struct taskio_join_future future = return_future_fn_obj(void, taskio_join, len, head);
+
+    future.env.allocator = *allocator;
 
     for (size_t i = 0; i < len; i++) {
         struct taskio_join_task* join_task = &head[i];
@@ -80,7 +85,7 @@ async_fn(void, taskio_join) {
             future->poll(future, NULL, NULL, NULL);
         }
 
-        free(head);
+        async_env(allocator).free(head);
     }
 
     async_scope_while(true) {

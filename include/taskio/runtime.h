@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <threads.h>
 
+#include "alloc.h"
 #include "future.h"
 
 #define TASKIO_SINGLE_THREADED (0)
@@ -23,6 +24,8 @@
         taskio_handle_drop(&__taskio_handle);                                                                          \
     }
 
+typedef char taskio_stack_runtime[6 * 1024];
+
 struct taskio_runtime;
 
 struct taskio_handle {
@@ -30,11 +33,9 @@ struct taskio_handle {
     void* task;
 };
 
-typedef char taskio_stack_runtime[6 * 1024];
-
 size_t taskio_runtime_size();
 
-void taskio_runtime_init(struct taskio_runtime* runtime, size_t workers);
+void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, struct taskio_allocator* allocator);
 void taskio_runtime_drop(struct taskio_runtime* runtime);
 
 struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct taskio_future* future,

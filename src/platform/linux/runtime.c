@@ -26,7 +26,9 @@ static void task_drop(struct taskio_task* task);
 
 size_t taskio_runtime_size() { return sizeof(struct taskio_runtime); }
 
-void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
+void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, struct taskio_allocator* allocator) {
+    runtime->allocator = *allocator;
+
     switch (worker_size) {
         case TASKIO_SINGLE_THREADED: {
             break;
@@ -69,14 +71,19 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size) {
     struct taskio_wheel_timer* wheels = runtime->hierarchy_wheel.wheels;
     struct taskio_timer** timer_buckets = runtime->hierarchy_wheel.buckets;
 
-    taskio_wheel_timer_init(&wheels[0], 0, 1, 10, &timer_buckets[0], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[1], 1, 10, 10, &timer_buckets[10], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[2], 2, 100, 10, &timer_buckets[20], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[3], 3, 1000, 60, &timer_buckets[30], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[4], 4, 60000, 60, &timer_buckets[90], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[5], 5, 3600000, 24, &timer_buckets[150], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[6], 6, 86400000, 365, &timer_buckets[174], _wheel_loop, _wheel_expiry, runtime);
-    taskio_wheel_timer_init(&wheels[7], 7, 31536000000, 4, &timer_buckets[539], NULL, _wheel_expiry, runtime);
+    taskio_wheel_timer_init(&wheels[0], allocator, 0, 1, 10, &timer_buckets[0], _wheel_loop, _wheel_expiry, runtime);
+    taskio_wheel_timer_init(&wheels[1], allocator, 1, 10, 10, &timer_buckets[10], _wheel_loop, _wheel_expiry, runtime);
+    taskio_wheel_timer_init(&wheels[2], allocator, 2, 100, 10, &timer_buckets[20], _wheel_loop, _wheel_expiry, runtime);
+    taskio_wheel_timer_init(&wheels[3], allocator, 3, 1000, 60, &timer_buckets[30], _wheel_loop, _wheel_expiry,
+                            runtime);
+    taskio_wheel_timer_init(&wheels[4], allocator, 4, 60000, 60, &timer_buckets[90], _wheel_loop, _wheel_expiry,
+                            runtime);
+    taskio_wheel_timer_init(&wheels[5], allocator, 5, 3600000, 24, &timer_buckets[150], _wheel_loop, _wheel_expiry,
+                            runtime);
+    taskio_wheel_timer_init(&wheels[6], allocator, 6, 86400000, 365, &timer_buckets[174], _wheel_loop, _wheel_expiry,
+                            runtime);
+    taskio_wheel_timer_init(&wheels[7], allocator, 7, 31536000000, 4, &timer_buckets[539], NULL, _wheel_expiry,
+                            runtime);
 
     runtime->poll_scheduled = false;
     runtime->poll_head = NULL;
@@ -97,7 +104,7 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
                                           size_t future_size) {
     uint64_t handle_id = next_handle_id++;
 
-    struct taskio_task* task = malloc(sizeof(struct taskio_task) + future_size);
+    struct taskio_task* task = runtime->allocator.alloc(sizeof(struct taskio_task) + future_size);
 
     // handled by the user and runtime
     task->counter = 2;
@@ -201,7 +208,7 @@ void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker
         }
     }
 
-    struct taskio_task_wake_node* node = malloc(sizeof(struct taskio_task_wake_node));
+    struct taskio_task_wake_node* node = task->runtime->allocator.alloc(sizeof(struct taskio_task_wake_node));
     node->waker = *waker;
     node->out = out;
     node->next = task->wake_on_ready_top;
@@ -287,7 +294,7 @@ static int worker_run(void* arg) {
 
                                 wake_node->waker.wake(&wake_node->waker);
 
-                                free(wake_node);
+                                worker->runtime->allocator.free(wake_node);
                                 wake_node = next_wake_node;
                             }
 
@@ -360,6 +367,6 @@ static void task_wake(struct taskio_waker* waker) {
 
 static void task_drop(struct taskio_task* task) {
     if (atomic_fetch_sub(&task->counter, 1) == 1) {
-        free(task);
+        task->runtime->allocator.free(task);
     }
 }

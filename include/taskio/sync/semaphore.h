@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <threads.h>
 
+#include <taskio/alloc.h>
 #include <taskio/async.h>
 #include <taskio/common.h>
 
@@ -19,6 +20,8 @@ struct taskio_semaphore_node {
 struct taskio_semaphore {
     atomic_size_t counter;
 
+    struct taskio_allocator allocator;
+
     mtx_t wake_guard;
     struct taskio_semaphore_node* wake_queue_head;
     struct taskio_semaphore_node* wake_queue_tail;
@@ -30,6 +33,8 @@ struct taskio_semaphore_wait_env {
 };
 
 void taskio_semaphore_init(struct taskio_semaphore* semaphore, size_t permits);
+void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, size_t permits,
+                                      struct taskio_allocator* allocator);
 void taskio_semaphore_drop(struct taskio_semaphore* semaphore);
 
 size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore);
