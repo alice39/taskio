@@ -6,8 +6,11 @@
 #ifdef TASKIO_TRACING
 #include <stdio.h>
 #define TASKIO_TRACE_UNDEFINED(future)                                                                                 \
-    fprintf(stderr, "taskio-tracing: future '%s' at file %s:%lu is undefined\n", (future)->trace.name,                 \
-            (future)->trace.file, (future)->trace.line)
+    fprintf(stderr,                                                                                                    \
+            "taskio-tracing: future '%s' at file %s:%lu is undefined.\ntaskio-tracing: check if there is missing "     \
+            "yield(), "                                                                                                \
+            "suspended_yield(), await*() or async_return() at the end of any async_scope in the async_fn(..., %s)\n",  \
+            (future)->trace.name, (future)->trace.file, (future)->trace.line, (future)->trace.name)
 #else
 #define TASKIO_TRACE_UNDEFINED(future)
 #endif // TASKIO_TRACING
