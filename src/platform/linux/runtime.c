@@ -97,15 +97,14 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
                                           size_t future_size) {
     uint64_t handle_id = next_handle_id++;
 
-    struct taskio_task* task = malloc(sizeof(struct taskio_task));
+    struct taskio_task* task = malloc(sizeof(struct taskio_task) + future_size);
 
     // handled by the user and runtime
     task->counter = 2;
     task->id = handle_id;
 
     task->awaken = false;
-    task->aborted = false;
-    task->finished = false;
+    task->status = taskio_task_scheduled;
 
     task->runtime = runtime;
     task->wake_on_ready_top = NULL;
@@ -113,11 +112,9 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
     task->next = NULL;
 
     if (future_size == 0) {
-        task->pinned = false;
         task->future = future;
     } else {
-        task->pinned = true;
-        task->future = malloc(future_size);
+        task->future = (struct taskio_future*)&task->raw_futures[0];
         memcpy(task->future, future, future_size);
     }
 
@@ -167,29 +164,41 @@ void taskio_handle_drop(struct taskio_handle* handle) {
 
 bool taskio_handle_is_aborted(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
-    return task->aborted;
+    return task->status == taskio_task_aborted;
 }
 
 bool taskio_handle_is_finished(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
-    return task->finished;
+    return task->status == taskio_task_finished;
 }
 
 void taskio_handle_abort(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
-    if (task->aborted || task->finished) {
-        return;
+    switch (task->status) {
+        case taskio_task_scheduled: {
+            break;
+        }
+        case taskio_task_aborted:
+        case taskio_task_finished: {
+            return;
+        }
     }
 
-    task->aborted = true;
+    task->status = taskio_task_aborted;
     task_add_event_loop(task);
 }
 
 void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker, void* out) {
     struct taskio_task* task = handle->task;
-    if (task->aborted || task->finished) {
-        waker->wake(waker);
-        return;
+    switch (task->status) {
+        case taskio_task_scheduled: {
+            break;
+        }
+        case taskio_task_aborted:
+        case taskio_task_finished: {
+            waker->wake(waker);
+            return;
+        }
     }
 
     struct taskio_task_wake_node* node = malloc(sizeof(struct taskio_task_wake_node));
@@ -229,7 +238,7 @@ static int worker_run(void* arg) {
                     task->awaken = false;
                     task->next = NULL;
 
-                    if (task->aborted) {
+                    if (task->status == taskio_task_aborted) {
                         // cleanup process
                         task->future->counter = __TASKIO_FUTURE_CLR_VAL;
                         task->future->poll(task->future, NULL, NULL, NULL);
@@ -262,7 +271,7 @@ static int worker_run(void* arg) {
                             task->future->counter = __TASKIO_FUTURE_CLR_VAL;
                             task->future->poll(task->future, NULL, NULL, NULL);
 
-                            task->finished = true;
+                            task->status = taskio_task_finished;
 
                             struct taskio_task_wake_node* wake_node = task->wake_on_ready_top;
                             while (wake_node) {
@@ -277,6 +286,7 @@ static int worker_run(void* arg) {
                             if (worker->handle_id == task->id) {
                                 running = false;
                             }
+
                             task_drop(task);
                             break;
                         }
@@ -346,10 +356,6 @@ static void task_wake(struct taskio_waker* waker) {
 
 static void task_drop(struct taskio_task* task) {
     if (atomic_fetch_sub(&task->counter, 1) == 1) {
-        if (task->pinned) {
-            free(task->future);
-        }
-
         free(task);
     }
 }

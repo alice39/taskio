@@ -11,20 +11,26 @@ struct taskio_task_wake_node {
     struct taskio_task_wake_node* next;
 };
 
+enum taskio_task_status {
+    taskio_task_scheduled,
+    taskio_task_aborted,
+    taskio_task_finished,
+};
+
 struct taskio_task {
     atomic_size_t counter;
     uint64_t id;
 
-    bool pinned;
     bool awaken;
-    bool aborted;
-    bool finished;
+    enum taskio_task_status status;
 
     struct taskio_runtime* runtime;
     struct taskio_task_wake_node* wake_on_ready_top;
 
     struct taskio_future* future;
     struct taskio_task* next;
+
+    uint8_t raw_futures[];
 };
 
 struct taskio_hierarchy_wheel_timer {
