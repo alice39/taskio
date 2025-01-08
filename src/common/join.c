@@ -92,6 +92,8 @@ async_fn(void, taskio_join) {
         async_env(poll_tail) = NULL;
 
         while (join_task) {
+            struct taskio_join_task* next_join_task = join_task->next;
+
             join_task->env = &__TASKIO_FUTURE_OBJ->env;
             join_task->future->counter += 1;
 
@@ -121,7 +123,7 @@ async_fn(void, taskio_join) {
                 }
             }
 
-            join_task = join_task->next;
+            join_task = next_join_task;
         }
 
         if (async_env(len) == async_env(completed_len)) {
