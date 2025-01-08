@@ -262,11 +262,19 @@ static int worker_run(void* arg) {
                         .runtime = worker->runtime,
                     };
 
-                    enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+                    enum taskio_future_poll poll = taskio_future_undefined;
                     task->future->poll(task->future, &context, &poll, worker->handle_out);
 
                     switch (poll) {
-                        case TASKIO_FUTURE_READY: {
+                        case taskio_future_undefined: {
+                            TASKIO_TRACE_UNDEFINED(task->future);
+                            break;
+                        }
+                        case taskio_future_pending: {
+                            // Nothing to do, waiting for future to wake up.
+                            break;
+                        }
+                        case taskio_future_ready: {
                             // cleanup process
                             task->future->counter = __TASKIO_FUTURE_CLR_VAL;
                             task->future->poll(task->future, NULL, NULL, NULL);
@@ -288,10 +296,6 @@ static int worker_run(void* arg) {
                             }
 
                             task_drop(task);
-                            break;
-                        }
-                        case TASKIO_FUTURE_PENDING: {
-                            // Nothing to do, waiting for future to wake up.
                             break;
                         }
                     }

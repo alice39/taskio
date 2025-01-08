@@ -98,20 +98,24 @@ async_fn(void, taskio_join) {
             ctx.waker.wake = _join_wake;
             ctx.waker.data = join_task;
 
-            enum taskio_future_poll poll = TASKIO_FUTURE_PENDING;
+            enum taskio_future_poll poll = taskio_future_undefined;
             join_task->future->poll(join_task->future, &ctx, &poll, NULL);
 
             switch (poll) {
-                case TASKIO_FUTURE_READY: {
+                case taskio_future_undefined: {
+                    TASKIO_TRACE_UNDEFINED(join_task->future);
+                    break;
+                }
+                case taskio_future_pending: {
+                    break;
+                }
+                case taskio_future_ready: {
                     async_env(completed_len) += 1;
 
                     join_task->future->counter = __TASKIO_FUTURE_CLR_VAL;
                     join_task->future->poll(join_task->future, NULL, NULL, NULL);
 
                     join_task->future = NULL;
-                    break;
-                }
-                case TASKIO_FUTURE_PENDING: {
                     break;
                 }
             }

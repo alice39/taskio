@@ -22,6 +22,9 @@ $(shell mkdir -p $(OBJ_DIR) $(TEST_BUILD_DIR))
 
 all: $(STATIC_LIB) $(SHARED_LIB) $(TEST_FILES:tests/%.c=$(TEST_BUILD_DIR)/%.out)
 
+all-debug: CFLAGS += -DTASKIO_TRACING
+all-debug: all
+
 $(OBJ_DIR)/%.o: src/%.c $(LIBUCONTEXT_TARGETS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@

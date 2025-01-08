@@ -89,8 +89,21 @@
         .inner = return_future_fn_inner_obj(T, name), .env = (struct name##_env){FUTURE_ENV_INIT(__VA_ARGS__)},        \
     }
 
-#define return_future_fn_inner_obj(T, name)                                                                            \
-    (struct taskio_future){.poll = name##_poll, .await_future = NULL, .await_out = NULL, .counter = 0}
+#ifdef TASKIO_TRACING
+#define return_future_fn_inner_obj(T, future_name)                                                                     \
+    (struct taskio_future) {                                                                                           \
+        .trace =                                                                                                       \
+            {                                                                                                          \
+                .name = #future_name,                                                                                  \
+                .file = __FILE__,                                                                                      \
+                .line = __LINE__,                                                                                      \
+            },                                                                                                         \
+        .poll = future_name##_poll, .await_future = NULL, .await_out = NULL, .counter = 0,                             \
+    }
+#else
+#define return_future_fn_inner_obj(T, future_name)                                                                     \
+    (struct taskio_future) { .poll = future_name##_poll, .await_future = NULL, .await_out = NULL, .counter = 0, }
+#endif // TASKIO_TRACING
 
 #define return_future_fn(T, name, ...) return return_future_fn_obj(T, name, __VA_ARGS__)
 
@@ -117,19 +130,23 @@
         } else {                                                                                                       \
             __TASKIO_TASK_OBJ->counter += 1;                                                                           \
                                                                                                                        \
-            enum taskio_future_poll __TASKIO_TASK_POL = TASKIO_FUTURE_PENDING;                                         \
+            enum taskio_future_poll __TASKIO_TASK_POL = taskio_future_undefined;                                       \
             __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, __TASKIO_FUTURE_CTX, &__TASKIO_TASK_POL, __TASKIO_TASK_VAL);    \
                                                                                                                        \
             switch (__TASKIO_TASK_POL) {                                                                               \
-                case TASKIO_FUTURE_READY: {                                                                            \
+                case taskio_future_undefined: {                                                                        \
+                    TASKIO_TRACE_UNDEFINED(&__TASKIO_FUTURE_OBJ->inner);                                               \
+                    break;                                                                                             \
+                }                                                                                                      \
+                case taskio_future_pending: {                                                                          \
+                    __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                           \
+                    suspended_yield();                                                                                 \
+                }                                                                                                      \
+                case taskio_future_ready: {                                                                            \
                     __TASKIO_TASK_OBJ->counter = __TASKIO_FUTURE_CLR_VAL;                                              \
                     __TASKIO_TASK_OBJ->poll(__TASKIO_TASK_OBJ, NULL, NULL, NULL);                                      \
                     __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                    \
                     break;                                                                                             \
-                }                                                                                                      \
-                case TASKIO_FUTURE_PENDING: {                                                                          \
-                    __TASKIO_FUTURE_OBJ->inner.counter -= 1;                                                           \
-                    suspended_yield();                                                                                 \
                 }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
@@ -142,12 +159,12 @@
 #define async_cleanup() if (__TASKIO_FUTURE_CLR_VAL == __TASKIO_FUTURE_OBJ->inner.counter)
 
 #define yield()                                                                                                        \
-    *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                      \
+    *__TASKIO_FUTURE_POL = taskio_future_pending;                                                                      \
     __TASKIO_FUTURE_CTX->waker.wake(&__TASKIO_FUTURE_CTX->waker);                                                      \
     return
 
 #define suspended_yield()                                                                                              \
-    *__TASKIO_FUTURE_POL = TASKIO_FUTURE_PENDING;                                                                      \
+    *__TASKIO_FUTURE_POL = taskio_future_pending;                                                                      \
     return
 
 #define await_get_handle(handle, out)                                                                                  \
@@ -162,17 +179,21 @@
     __TASKIO_FUTURE_OBJ->inner.await_out = out;                                                                        \
                                                                                                                        \
     future.inner.counter = 1;                                                                                          \
-    enum taskio_future_poll __TASKIO_TASK_POL = TASKIO_FUTURE_PENDING;                                                 \
+    enum taskio_future_poll __TASKIO_TASK_POL = taskio_future_undefined;                                               \
     future.inner.poll(&future.inner, __TASKIO_FUTURE_CTX, &__TASKIO_TASK_POL, out);                                    \
                                                                                                                        \
     switch (__TASKIO_TASK_POL) {                                                                                       \
-        case TASKIO_FUTURE_READY: {                                                                                    \
+        case taskio_future_undefined: {                                                                                \
+            TASKIO_TRACE_UNDEFINED(&future.inner);                                                                     \
+            suspended_yield();                                                                                         \
+        }                                                                                                              \
+        case taskio_future_pending: {                                                                                  \
+            suspended_yield();                                                                                         \
+        }                                                                                                              \
+        case taskio_future_ready: {                                                                                    \
             __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                            \
             __TASKIO_FUTURE_OBJ->inner.await_out = NULL;                                                               \
             yield();                                                                                                   \
-        }                                                                                                              \
-        case TASKIO_FUTURE_PENDING: {                                                                                  \
-            suspended_yield();                                                                                         \
         }                                                                                                              \
     }
 
@@ -185,7 +206,7 @@
 #define await_fn(fn, ...) await_fn_get(fn, NULL, __VA_ARGS__)
 
 #define async_return(...)                                                                                              \
-    *__TASKIO_FUTURE_POL = TASKIO_FUTURE_READY;                                                                        \
+    *__TASKIO_FUTURE_POL = taskio_future_ready;                                                                        \
     __VA_OPT__(if (__TASKIO_FUTURE_VAL) { *__TASKIO_FUTURE_VAL = __VA_ARGS__; })                                       \
     return
 
