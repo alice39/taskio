@@ -3,16 +3,10 @@
 
 #if defined(TASKIO_RUNTIME) && TASKIO_RUNTIME == SIMPLE
 
-#include <stdlib.h>
 #include <string.h>
 
 #include <taskio/async.h>
 #include <taskio/runtime.h>
-
-#define __TASKIO_MAIN_CUSTOM_ALLOC(allocator, alloc_fn, free_fn, data_val)                                             \
-    allocator.alloc = alloc_fn;                                                                                        \
-    allocator.free = free_fn;                                                                                          \
-    allocator.data = data_val;
 
 #define taskio_main_env __taskio_async_main_env
 
@@ -34,7 +28,7 @@
         taskio_stack_runtime stack_rt = {};                                                                            \
         struct taskio_runtime* rt = (struct taskio_runtime*)stack_rt;                                                  \
         struct taskio_allocator allocator = taskio_default_allocator();                                                \
-        __VA_OPT__(__TASKIO_MAIN_CUSTOM_ALLOC(allocator, __VA_ARGS__))                                                 \
+        __VA_OPT__(allocator = __VA_ARGS__;)                                                                           \
         taskio_runtime_init(rt, TASKIO_SINGLE_THREADED, &allocator);                                                   \
                                                                                                                        \
         if (sizeof(struct __taskio_async_main_future) < 512000) {                                                      \

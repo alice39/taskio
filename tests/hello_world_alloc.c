@@ -1,6 +1,7 @@
 #define TASKIO_RUNTIME SIMPLE
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <taskio.h>
 
@@ -25,7 +26,11 @@ void print_free(void* data, void* ptr) {
     free(ptr);
 }
 
-taskio_main(print_alloc, print_free, "custom-alloc") {
+struct taskio_allocator with_allocator() {
+    return (struct taskio_allocator){.alloc = print_alloc, .free = print_free, .data = "custom-alloc"};
+}
+
+taskio_main(with_allocator()) {
     taskio_main_begin();
 
     async_scope() {
