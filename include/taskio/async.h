@@ -80,6 +80,8 @@
                                                                                                                        \
     struct name##_future(name)
 
+#define future_fn_impl_redirect(T, name) struct name##_future(name)
+
 #define static_future_fn(T, name, ...)                                                                                 \
     struct name##_future {                                                                                             \
         struct taskio_future inner;                                                                                    \
