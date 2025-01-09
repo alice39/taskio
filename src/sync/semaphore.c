@@ -47,6 +47,13 @@ future_fn_impl(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore) 
     return_future_fn(void, taskio_semaphore_wait, semaphore);
 }
 
+future_fn_impl(bool, taskio_semaphore_timedwait)(struct taskio_semaphore* semaphore, uint64_t delay) {
+    struct taskio_semaphore_wait_future wait = taskio_semaphore_wait(semaphore);
+    struct taskio_sleep_future timeout = taskio_sleep(delay);
+
+    return_future_fn(bool, taskio_semaphore_timedwait, semaphore, wait, timeout);
+}
+
 async_fn(void, taskio_semaphore_wait) {
     struct taskio_semaphore* semaphore = async_env(semaphore);
 
@@ -95,6 +102,15 @@ async_fn(void, taskio_semaphore_wait) {
     }
 
     async_scope() { async_return(); }
+}
+
+async_fn(bool, taskio_semaphore_timedwait) {
+    async_scope() {
+        await_fn_get_as(taskio_select, taskio_select_with, &async_env(result), &async_env(semaphore)->allocator, true,
+                        NULL, &async_env(wait), &async_env(timeout));
+    }
+
+    async_scope() { async_return(async_env(result) == 0); }
 }
 
 void taskio_semaphore_blocking_wait(struct taskio_semaphore* semaphore) {
