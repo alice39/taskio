@@ -1,9 +1,19 @@
+#ifdef TASKIO_TRACING
+#include <stdio.h>
+#endif // TASKIO_TRACING
+
 #include <taskio/sync/semaphore.h>
 
 #include "../alloc_ext.h"
 
+#define SEMAPHORE_NODE_MASK (0b000011)
+#define SEMAPHORE_NODE_PLAIN (0b010000)
+#define SEMAPHORE_NODE_TIMED (0b100000)
+
 static inline void _signal_async(struct taskio_semaphore* semaphore);
 static inline void _signal_sync(struct taskio_semaphore* semaphore);
+
+static inline void _node_drop(struct taskio_allocator* allocator, struct taskio_semaphore_node* node, bool is_parent);
 
 void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, size_t permits,
                                       struct taskio_allocator* allocator) {
@@ -30,11 +40,15 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
     struct taskio_semaphore_node* node = semaphore->wake_queue_head;
     while (node) {
         struct taskio_semaphore_node* next = node->next;
-        if (atomic_fetch_sub(&node->counter, 1) == 1) {
-            semaphore->allocator->free(semaphore->allocator->data, node);
-        }
+        _node_drop(semaphore->allocator, node, true);
         node = next;
     }
+
+#ifdef TASKIO_TRACING
+    if (semaphore->blocking_wake_wait > 0) {
+        fprintf(stderr, "taskio-tracing: semaphore dropped before threads wake up on taskio_semaphore_blocking_wait\n");
+    }
+#endif // TASKIO_TRACING
 
     cnd_destroy(&semaphore->blocking_wake_cnd);
     mtx_destroy(&semaphore->blocking_wake_mtx);
@@ -52,6 +66,7 @@ future_fn_impl(bool, taskio_semaphore_timedwait)(struct taskio_semaphore* semaph
     struct taskio_semaphore_wait_future wait = taskio_semaphore_wait(semaphore);
     struct taskio_sleep_future timeout = taskio_sleep(delay);
 
+    wait.env.timed = true;
     return_future_fn(bool, taskio_semaphore_timedwait, semaphore, wait, timeout);
 }
 
@@ -59,9 +74,8 @@ async_fn(void, taskio_semaphore_wait) {
     struct taskio_semaphore* semaphore = async_env(semaphore);
 
     async_cleanup() {
-        struct taskio_semaphore_node* node = async_env(node);
-        if (node != NULL && atomic_fetch_sub(&node->counter, 1) == 1) {
-            semaphore->allocator->free(semaphore->allocator->data, node);
+        if (async_env(node)) {
+            _node_drop(semaphore->allocator, async_env(node), false);
         }
     }
 
@@ -81,7 +95,7 @@ async_fn(void, taskio_semaphore_wait) {
 
             mtx_lock(&semaphore->wake_guard);
 
-            node->counter = 2;
+            node->counter = async_env(timed) ? SEMAPHORE_NODE_TIMED | 2 : SEMAPHORE_NODE_PLAIN | 2;
             node->waker = __TASKIO_FUTURE_CTX->waker;
             node->back = semaphore->wake_queue_tail;
             node->next = NULL;
@@ -183,4 +197,23 @@ static inline void _signal_async(struct taskio_semaphore* semaphore) {
 static inline void _signal_sync(struct taskio_semaphore* semaphore) {
     semaphore->blocking_wake_signal += 1;
     cnd_signal(&semaphore->blocking_wake_cnd);
+}
+
+static inline void _node_drop(struct taskio_allocator* allocator, struct taskio_semaphore_node* node, bool is_parent) {
+    size_t counter_with_flags = atomic_fetch_sub(&node->counter, 1);
+    size_t counter = counter_with_flags & SEMAPHORE_NODE_MASK;
+
+    bool is_timed = (counter_with_flags & SEMAPHORE_NODE_TIMED) != 0;
+
+#ifdef TASKIO_TRACING
+    bool is_plain = (counter_with_flags & SEMAPHORE_NODE_PLAIN) != 0;
+
+    if (is_parent && is_plain && counter != 1) {
+        fprintf(stderr, "taskio-tracing: semaphore dropped before futures wake up on taskio_semaphore_wait\n");
+    }
+#endif // TASKIO_TRACING
+
+    if (counter == 1 || (is_parent && !is_timed)) {
+        allocator->free(allocator->data, node);
+    }
 }

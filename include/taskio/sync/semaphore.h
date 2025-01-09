@@ -43,6 +43,8 @@ size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore);
 struct taskio_semaphore_wait_env {
     struct taskio_semaphore* semaphore;
     struct taskio_semaphore_node* node;
+
+    bool timed;
 };
 
 future_fn(void, taskio_semaphore_wait)(struct taskio_semaphore* semaphore);
