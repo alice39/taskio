@@ -221,11 +221,17 @@
         }                                                                                                              \
     }
 
+#define await_fn_get_as(as, fn, out, ...)                                                                              \
+    async_env(__TASKIO_FUTURE_ENV).as = fn(__VA_ARGS__);                                                               \
+    await_get(async_env(__TASKIO_FUTURE_ENV).as, out)
+
 #define await_fn_get(fn, out, ...)                                                                                     \
     async_env(__TASKIO_FUTURE_ENV).fn = fn(__VA_ARGS__);                                                               \
     await_get(async_env(__TASKIO_FUTURE_ENV).fn, out)
 
 #define await(future) await_get(future, NULL)
+
+#define await_fn_as(as, fn, ...) await_fn_get_as(as, fn, NULL, __VA_ARGS__)
 
 #define await_fn(fn, ...) await_fn_get(fn, NULL, __VA_ARGS__)
 
