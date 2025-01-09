@@ -8,29 +8,29 @@
 #include <taskio/alloc.h>
 #include <taskio/async.h>
 
-#define taskio_join(...)                                                                                               \
+#define taskio_join(out, ...)                                                                                          \
     taskio_join(                                                                                                       \
         &(struct taskio_allocator){                                                                                    \
             .alloc = taskio_default_alloc,                                                                             \
             .free = taskio_default_free,                                                                               \
             .data = taskio_default_data(),                                                                             \
         },                                                                                                             \
-        sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+        out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
-#define taskio_select(...)                                                                                             \
+#define taskio_select(out, ...)                                                                                        \
     (taskio_select)(                                                                                                   \
         &(struct taskio_allocator){                                                                                    \
             .alloc = taskio_default_alloc,                                                                             \
             .free = taskio_default_free,                                                                               \
             .data = taskio_default_data(),                                                                             \
         },                                                                                                             \
-        true, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+        true, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
-#define taskio_join_with_alloc(alloc, biased, ...)                                                                     \
-    taskio_join(alloc, biased, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+#define taskio_join_with_alloc(alloc, biased, out, ...)                                                                \
+    taskio_join(alloc, biased, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
-#define taskio_select_with(alloc, biased, ...)                                                                         \
-    (taskio_select)(alloc, biased, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+#define taskio_select_with(alloc, biased, out, ...)                                                                    \
+    (taskio_select)(alloc, biased, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
 struct taskio_sleep_env {
     uint64_t ms;
@@ -50,13 +50,14 @@ typedef void (*taskio_join_on_cleanup)(struct taskio_join_ext_env* env);
 struct taskio_join_ext_env {
     struct taskio_allocator allocator;
 
+    void* out;
+
     size_t len;
     size_t completed_len;
 
     struct taskio_waker waker;
 
     struct taskio_join_task* head;
-
     struct taskio_join_task* poll_head;
     struct taskio_join_task* poll_tail;
 
@@ -80,10 +81,10 @@ struct taskio_select_env {
 };
 
 future_fn(void, taskio_sleep)(uint64_t ms);
-heap_future_fn(void, taskio_join)(struct taskio_allocator* allocator, size_t len, ...);
-heap_future_fn(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, size_t len, ...);
+heap_future_fn(void, taskio_join)(struct taskio_allocator* allocator, void* out, size_t len, ...);
+heap_future_fn(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, void* out, size_t len, ...);
 
-struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocator, size_t len,
+struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocator, void* out, size_t len,
                                                 struct taskio_future** futures);
 
 #endif // TASKIO_COMMON_GUARD_HEADER

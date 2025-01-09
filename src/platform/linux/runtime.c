@@ -47,8 +47,8 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, str
         thrd_create(&worker->id, worker_run, NULL);
         worker->runtime = runtime;
 
-        worker->handle_id = -1;
-        worker->handle_out = NULL;
+        worker->task = NULL;
+        worker->task_out = NULL;
     }
 
     runtime->event_fd = eventfd(0, 0);
@@ -86,21 +86,26 @@ void taskio_runtime_drop(struct taskio_runtime* runtime) {
 }
 
 struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct taskio_future* future,
-                                          size_t future_size) {
+                                          size_t future_size, size_t out_size) {
     uint64_t handle_id = next_handle_id++;
 
     struct taskio_task* task =
-        runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_task) + future_size);
+        runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_task) + future_size + out_size);
 
     // handled by the user and runtime
     task->counter = 2;
-    task->id = handle_id;
 
-    task->awaken = false;
-    task->status = taskio_task_scheduled;
+    task->status = taskio_task_suspended;
 
     task->runtime = runtime;
     task->wake_on_ready_top = NULL;
+
+    task->out_size = out_size;
+    if (out_size == 0) {
+        task->out = NULL;
+    } else {
+        task->out = (void*)&task->raw_futures[future_size];
+    }
 
     task->next = NULL;
 
@@ -120,18 +125,19 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
 }
 
 struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtime, struct taskio_future* future,
-                                                   size_t future_size) {
+                                                   size_t future_size, size_t out_size) {
     // FIXME: implement spawn blocking
     (void)runtime;
     (void)future;
     (void)future_size;
+    (void)out_size;
 
     return (struct taskio_handle){};
 }
 
-void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_future* future) {
-    struct taskio_handle handle = taskio_runtime_spawn(runtime, future, 0);
-    struct taskio_worker worker = {.runtime = runtime, .handle_id = handle.id};
+void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_future* future, void* out) {
+    struct taskio_handle handle = taskio_runtime_spawn(runtime, future, 0, 0);
+    struct taskio_worker worker = {.runtime = runtime, .task = handle.task, .task_out = out};
 
     taskio_handle_drop(&handle);
     worker_run(&worker);
@@ -168,27 +174,37 @@ bool taskio_handle_is_finished(struct taskio_handle* handle) {
 void taskio_handle_abort(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
     switch (task->status) {
-        case taskio_task_scheduled: {
+        case taskio_task_suspended: {
+            task->status = taskio_task_aborted;
+            task_add_event_loop(task);
             break;
+        }
+        case taskio_task_scheduled: {
+            task->status = taskio_task_aborted;
         }
         case taskio_task_aborted:
         case taskio_task_finished: {
-            return;
+            // nothing to do
+            break;
         }
     }
-
-    task->status = taskio_task_aborted;
-    task_add_event_loop(task);
 }
 
 void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker, void* out) {
     struct taskio_task* task = handle->task;
     switch (task->status) {
+        case taskio_task_suspended:
         case taskio_task_scheduled: {
             break;
         }
-        case taskio_task_aborted:
+        case taskio_task_aborted: {
+            waker->wake(waker);
+            break;
+        }
         case taskio_task_finished: {
+            if (out != NULL && task->out != NULL) {
+                memcpy(out, task->out, task->out_size);
+            }
             waker->wake(waker);
             return;
         }
@@ -229,19 +245,19 @@ static int worker_run(void* arg) {
                         worker->runtime->poll_tail = NULL;
                     }
 
-                    task->awaken = false;
-                    task->next = NULL;
-
                     if (task->status == taskio_task_aborted) {
                         __TASKIO_FUTURE_CLEANUP(task->future);
 
-                        if (worker->handle_id == task->id) {
+                        if (worker->task == task) {
                             running = false;
                         }
 
                         task_drop(task);
                         continue;
                     }
+
+                    task->status = taskio_task_suspended;
+                    task->next = NULL;
 
                     task->future->counter += 1;
 
@@ -255,7 +271,8 @@ static int worker_run(void* arg) {
                     };
 
                     enum taskio_future_poll poll = taskio_future_undefined;
-                    task->future->poll(task->future, &context, &poll, worker->handle_out);
+                    void* out = worker->task == task ? worker->task_out : task->out;
+                    task->future->poll(task->future, &context, &poll, out);
 
                     switch (poll) {
                         case taskio_future_undefined: {
@@ -275,13 +292,16 @@ static int worker_run(void* arg) {
                             while (wake_node) {
                                 struct taskio_task_wake_node* next_wake_node = wake_node->next;
 
+                                if (wake_node->out) {
+                                    memcpy(wake_node->out, task->out, task->out_size);
+                                }
                                 wake_node->waker.wake(&wake_node->waker);
 
                                 worker->runtime->allocator.free(worker->runtime->allocator.data, wake_node);
                                 wake_node = next_wake_node;
                             }
 
-                            if (worker->handle_id == task->id) {
+                            if (worker->task == task) {
                                 running = false;
                             }
 
@@ -360,11 +380,11 @@ static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_
 }
 
 static void task_add_event_loop(struct taskio_task* task) {
-    if (task->awaken) {
+    if (task->status == taskio_task_scheduled) {
         return;
     }
 
-    task->awaken = true;
+    task->status = taskio_task_scheduled;
 
     struct taskio_runtime* runtime = task->runtime;
 

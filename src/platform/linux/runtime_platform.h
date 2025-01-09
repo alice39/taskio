@@ -17,20 +17,27 @@ struct taskio_task_wake_node {
 };
 
 enum taskio_task_status {
+    taskio_task_suspended,
     taskio_task_scheduled,
     taskio_task_aborted,
     taskio_task_finished,
 };
 
+struct taskio_task_out {
+    void* out;
+    struct taskio_task_out* next;
+};
+
 struct taskio_task {
     atomic_size_t counter;
-    uint64_t id;
 
-    bool awaken;
     enum taskio_task_status status;
 
     struct taskio_runtime* runtime;
     struct taskio_task_wake_node* wake_on_ready_top;
+
+    size_t out_size;
+    void* out;
 
     struct taskio_future* future;
     struct taskio_task* next;
@@ -52,8 +59,8 @@ struct taskio_worker {
     thrd_t id;
     struct taskio_runtime* runtime;
 
-    uint64_t handle_id; // -1 if undefined
-    void* handle_out;   // NULL if undefined
+    struct taskio_task* task; // NULL if not used
+    void* task_out;           // NULL if not used
 };
 
 struct taskio_runtime {

@@ -81,7 +81,7 @@ taskio_main() {
 
         async_tasks[0] = wait_task(sem, 3000);
         async_tasks[1] = wait_task(sem, 1000);
-        await_fn(taskio_join, &async_tasks[0], &async_tasks[1]);
+        await_fn(taskio_join, NULL, &async_tasks[0], &async_tasks[1]);
     }
 
     async_scope() {

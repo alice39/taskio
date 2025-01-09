@@ -4,14 +4,14 @@
 
 static void _join_wake(struct taskio_waker* waker);
 
-future_fn_impl(size_t, taskio_join_ext)(struct taskio_allocator* allocator_ref, size_t len,
+future_fn_impl(size_t, taskio_join_ext)(struct taskio_allocator* allocator_ref, void* out, size_t len,
                                         struct taskio_join_task* head, taskio_join_on_ready on_ready,
                                         taskio_join_on_finish on_finish, taskio_join_on_cleanup on_cleanup) {
     struct taskio_allocator allocator = *allocator_ref;
     struct taskio_join_task* poll_head = len >= 1 ? &head[0] : NULL;
     struct taskio_join_task* poll_tail = len >= 1 ? &head[len - 1] : NULL;
 
-    return_future_fn(size_t, taskio_join_ext, allocator, len, head, poll_head, poll_tail, on_ready, on_finish,
+    return_future_fn(size_t, taskio_join_ext, allocator, out, len, head, poll_head, poll_tail, on_ready, on_finish,
                      on_cleanup);
 }
 
@@ -61,7 +61,7 @@ async_fn(size_t, taskio_join_ext) {
             ctx.waker.data = join_task;
 
             enum taskio_future_poll poll = taskio_future_undefined;
-            join_task->future->poll(join_task->future, &ctx, &poll, NULL);
+            join_task->future->poll(join_task->future, &ctx, &poll, async_env(out));
 
             switch (poll) {
                 case taskio_future_undefined: {

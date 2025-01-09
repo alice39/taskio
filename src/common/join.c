@@ -2,7 +2,7 @@
 
 #include "../common_ext.h"
 
-future_fn_impl_redirect(void, taskio_join)(struct taskio_allocator* allocator, size_t len, ...) {
+future_fn_impl_redirect(void, taskio_join)(struct taskio_allocator* allocator, void* out, size_t len, ...) {
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);
 
     va_list args;
@@ -18,7 +18,7 @@ future_fn_impl_redirect(void, taskio_join)(struct taskio_allocator* allocator, s
 
     va_end(args);
 
-    struct taskio_join_ext_future future = taskio_join_ext(allocator, len, head, NULL, NULL, NULL);
+    struct taskio_join_ext_future future = taskio_join_ext(allocator, out, len, head, NULL, NULL, NULL);
     return (struct taskio_join_future){
         .inner = future.inner,
         .env =
@@ -28,7 +28,7 @@ future_fn_impl_redirect(void, taskio_join)(struct taskio_allocator* allocator, s
     };
 }
 
-struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocator, size_t len,
+struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocator, void* out, size_t len,
                                                 struct taskio_future** futures) {
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);
 
@@ -40,7 +40,7 @@ struct taskio_join_future taskio_join_from_list(struct taskio_allocator* allocat
         join_task->next = i + 1 < len ? &head[i + 1] : NULL;
     }
 
-    struct taskio_join_ext_future future = taskio_join_ext(allocator, len, head, NULL, NULL, NULL);
+    struct taskio_join_ext_future future = taskio_join_ext(allocator, out, len, head, NULL, NULL, NULL);
     return (struct taskio_join_future){
         .inner = future.inner,
         .env =

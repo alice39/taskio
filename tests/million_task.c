@@ -19,7 +19,7 @@ taskio_main() {
     async_scope() {
         for (size_t i = 0; i < COUNT; i++) {
             async_env(futures)[i] = taskio_sleep(1000);
-            async_env(handles)[i] = taskio_spawn_pinned(async_env(futures)[i]);
+            async_env(handles)[i] = taskio_spawn_pinned(async_env(futures)[i], int);
         }
 
         yield();

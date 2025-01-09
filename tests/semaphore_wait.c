@@ -55,7 +55,7 @@ taskio_main() {
 
         async_env(wait_one) = wait_task(sem, 4000);
         async_env(wait_two) = wait_task(sem, 2000);
-        await_fn(taskio_join, &async_env(wait_one), &async_env(wait_two));
+        await_fn(taskio_join, NULL, &async_env(wait_one), &async_env(wait_two));
     }
 
     async_scope() {

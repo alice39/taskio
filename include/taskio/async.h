@@ -1,6 +1,8 @@
 #ifndef TASKIO_ASYNC_GUARD_HEADER
 #define TASKIO_ASYNC_GUARD_HEADER
 
+#include <stdint.h>
+
 #include <taskio/future.h>
 
 #define __TASKIO_FUTURE_OBJ_ANY __taskio_future
@@ -22,6 +24,8 @@
 #define __TASKIO_FUTURE_CLEANUP(future)                                                                                \
     (future)->counter = __TASKIO_FUTURE_CLR_VAL;                                                                       \
     (future)->poll(future, NULL, NULL, NULL);
+
+#define async_void uint8_t
 
 #define future_env(...) __VA_OPT__(union {future_env_1(__VA_ARGS__)} __TASKIO_FUTURE_ENV)
 
@@ -161,7 +165,9 @@
                 }                                                                                                      \
                 case taskio_future_ready: {                                                                            \
                     __TASKIO_FUTURE_CLEANUP(__TASKIO_TASK_OBJ);                                                        \
+                                                                                                                       \
                     __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                    \
+                    __TASKIO_FUTURE_OBJ->inner.await_out = NULL;                                                       \
                     break;                                                                                             \
                 }                                                                                                      \
             }                                                                                                          \
@@ -208,6 +214,7 @@
         }                                                                                                              \
         case taskio_future_ready: {                                                                                    \
             __TASKIO_FUTURE_CLEANUP(&future.inner);                                                                    \
+                                                                                                                       \
             __TASKIO_FUTURE_OBJ->inner.await_future = NULL;                                                            \
             __TASKIO_FUTURE_OBJ->inner.await_out = NULL;                                                               \
             yield();                                                                                                   \
@@ -216,7 +223,7 @@
 
 #define await_fn_get(fn, out, ...)                                                                                     \
     async_env(__TASKIO_FUTURE_ENV).fn = fn(__VA_ARGS__);                                                               \
-    await_get(__TASKIO_FUTURE_OBJ->env.__TASKIO_FUTURE_ENV.fn, out);
+    await_get(async_env(__TASKIO_FUTURE_ENV).fn, out)
 
 #define await(future) await_get(future, NULL)
 

@@ -12,7 +12,8 @@ struct taskio_select_node {
     struct taskio_select_node* next;
 };
 
-future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, size_t len, ...) {
+future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, void* out, size_t len,
+                                               ...) {
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);
 
     va_list args;
@@ -28,7 +29,8 @@ future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocato
 
     va_end(args);
 
-    struct taskio_join_ext_future future = taskio_join_ext(allocator, len, head, _on_ready, _on_finish, _on_cleanup);
+    struct taskio_join_ext_future future =
+        taskio_join_ext(allocator, out, len, head, _on_ready, _on_finish, _on_cleanup);
     return (struct taskio_select_future){
         .inner = future.inner,
         .env =

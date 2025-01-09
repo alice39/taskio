@@ -58,7 +58,7 @@ taskio_main() {
 
         async_env(f1) = listener(sem);
         async_env(f2) = shoot(sem);
-        await_fn(taskio_join, &async_env(f1), &async_env(f2));
+        await_fn(taskio_join, NULL, &async_env(f1), &async_env(f2));
     }
 
     async_scope() {

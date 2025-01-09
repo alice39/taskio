@@ -19,7 +19,7 @@ taskio_main() {
         async_env(f2) = taskio_sleep(1000);
 
         printf("main: joint two futures\n");
-        await_fn(taskio_join, &async_env(f1), &async_env(f2));
+        await_fn(taskio_join, NULL, &async_env(f1), &async_env(f2));
     }
 
     async_scope() {

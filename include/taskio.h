@@ -9,8 +9,8 @@
 #define taskio_main_env __taskio_async_main_env
 
 #define taskio_main(...)                                                                                               \
-    static_future_fn(void, __taskio_async_main)(int argc, char** args) {                                               \
-        return_future_fn(void, __taskio_async_main, argc, args);                                                       \
+    static_future_fn(int, __taskio_async_main)(int argc, char** args) {                                                \
+        return_future_fn(int, __taskio_async_main, argc, args);                                                        \
     }                                                                                                                  \
                                                                                                                        \
     void __taskio_async_main_init(struct __taskio_async_main_future* f, int argc, char** args) {                       \
@@ -38,19 +38,21 @@
         struct taskio_runtime* rt = (struct taskio_runtime*)stack_rt;                                                  \
         taskio_runtime_init(rt, config.worker_size, &config.allocator);                                                \
                                                                                                                        \
+        int main_result = 0;                                                                                           \
+                                                                                                                       \
         if (sizeof(struct __taskio_async_main_future) < 512000) {                                                      \
             struct __taskio_async_main_future future = __taskio_async_main(argc, args);                                \
-            taskio_runtime_block_on(rt, &future.inner);                                                                \
+            taskio_runtime_block_on(rt, &future.inner, &main_result);                                                  \
         } else {                                                                                                       \
             struct __taskio_async_main_future* future =                                                                \
                 config.allocator.alloc(config.allocator.data, sizeof(struct __taskio_async_main_future));              \
             __taskio_async_main_init(future, argc, args);                                                              \
-            taskio_runtime_block_on(rt, &future->inner);                                                               \
+            taskio_runtime_block_on(rt, &future->inner, &main_result);                                                 \
             config.allocator.free(config.allocator.data, future);                                                      \
         }                                                                                                              \
                                                                                                                        \
         taskio_runtime_drop(rt);                                                                                       \
-        return 0;                                                                                                      \
+        return main_result;                                                                                            \
     }                                                                                                                  \
                                                                                                                        \
     async_fn(void, __taskio_async_main)

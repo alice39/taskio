@@ -11,6 +11,7 @@ struct taskio_main_env {
 
     struct taskio_sleep_future f1;
     struct taskio_sleep_future f2;
+    size_t select_index;
 };
 
 taskio_main() {
@@ -19,11 +20,11 @@ taskio_main() {
         async_env(f2) = taskio_sleep(1000);
 
         printf("main: select two futures\n");
-        await_fn(taskio_select, &async_env(f1), &async_env(f2));
+        await_fn_get(taskio_select, &async_env(select_index), NULL, &async_env(f1), &async_env(f2));
     }
 
     async_scope() {
-        printf("main: select finished\n");
+        printf("main: won %lu\n", async_env(select_index));
         async_return();
     }
 }
