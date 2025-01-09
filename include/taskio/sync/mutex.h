@@ -14,6 +14,15 @@ struct taskio_mutex_lock_env {
     future_env(taskio_semaphore_wait);
 };
 
+struct taskio_mutex_timedlock_env {
+    struct taskio_mutex* mutex;
+    uint64_t delay;
+
+    bool result;
+
+    future_env(taskio_semaphore_timedwait);
+};
+
 void taskio_mutex_init(struct taskio_mutex* mutex);
 void taskio_mutex_init_with_alloc(struct taskio_mutex* mutex, struct taskio_allocator* allocator);
 void taskio_mutex_drop(struct taskio_mutex* mutex);
@@ -21,6 +30,7 @@ void taskio_mutex_drop(struct taskio_mutex* mutex);
 // true if success, otherwise false
 bool taskio_mutex_try_lock(struct taskio_mutex* mutex);
 future_fn(void, taskio_mutex_lock)(struct taskio_mutex* mutex);
+future_fn(bool, taskio_mutex_timedlock)(struct taskio_mutex* mutex, uint64_t delay);
 void taskio_mutex_blocking_lock(struct taskio_mutex* mutex);
 void taskio_mutex_unlock(struct taskio_mutex* mutex);
 
