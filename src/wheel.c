@@ -5,7 +5,7 @@ void taskio_wheel_timer_drop(struct taskio_wheel_timer* wheel_timer) {
         struct taskio_timer* timer = wheel_timer->timer_buckets[i];
         while (timer) {
             struct taskio_timer* next_timer = timer->next;
-            wheel_timer->allocator.free(wheel_timer->allocator.data, timer);
+            wheel_timer->allocator->free(wheel_timer->allocator->data, timer);
             timer = next_timer;
         }
     }
@@ -30,7 +30,8 @@ struct taskio_timer* taskio_wheel_timer_add(struct taskio_wheel_timer* wheel_tim
         return NULL;
     }
 
-    struct taskio_timer* timer = wheel_timer->allocator.alloc(wheel_timer->allocator.data, sizeof(struct taskio_timer));
+    struct taskio_timer* timer =
+        wheel_timer->allocator->alloc(wheel_timer->allocator->data, sizeof(struct taskio_timer));
     timer->allocator = wheel_timer->allocator;
     // timer is handled by the user and the wheel
     timer->counter = 2;
@@ -116,7 +117,7 @@ void taskio_timer_clone(struct taskio_timer* timer) { timer->counter++; }
 
 void taskio_timer_drop(struct taskio_timer* timer) {
     if (atomic_fetch_sub(&timer->counter, 1) == 1) {
-        timer->allocator.free(timer->allocator.data, timer);
+        timer->allocator->free(timer->allocator->data, timer);
     }
 }
 

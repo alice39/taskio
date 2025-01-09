@@ -32,7 +32,6 @@ typedef char taskio_stack_runtime[6 * 1024];
 struct taskio_runtime;
 
 struct taskio_handle {
-    uint64_t id;
     void* task;
 };
 

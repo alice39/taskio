@@ -9,22 +9,10 @@
 #include <taskio/async.h>
 
 #define taskio_join(out, ...)                                                                                          \
-    taskio_join(                                                                                                       \
-        &(struct taskio_allocator){                                                                                    \
-            .alloc = taskio_default_alloc,                                                                             \
-            .free = taskio_default_free,                                                                               \
-            .data = taskio_default_data(),                                                                             \
-        },                                                                                                             \
-        out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+    taskio_join(NULL, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
 #define taskio_select(out, ...)                                                                                        \
-    (taskio_select)(                                                                                                   \
-        &(struct taskio_allocator){                                                                                    \
-            .alloc = taskio_default_alloc,                                                                             \
-            .free = taskio_default_free,                                                                               \
-            .data = taskio_default_data(),                                                                             \
-        },                                                                                                             \
-        true, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
+    (taskio_select)(NULL, true, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
 
 #define taskio_join_with_alloc(alloc, biased, out, ...)                                                                \
     taskio_join(alloc, biased, out, sizeof((void*[]){__VA_ARGS__}) / sizeof(void*) __VA_OPT__(, ) __VA_ARGS__)
@@ -48,7 +36,7 @@ typedef bool (*taskio_join_on_finish)(struct taskio_join_ext_env* env, size_t* o
 typedef void (*taskio_join_on_cleanup)(struct taskio_join_ext_env* env);
 
 struct taskio_join_ext_env {
-    struct taskio_allocator allocator;
+    struct taskio_allocator* allocator;
 
     void* out;
 

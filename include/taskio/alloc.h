@@ -12,8 +12,4 @@ struct taskio_allocator {
 
 struct taskio_allocator taskio_default_allocator();
 
-void* taskio_default_alloc(void* data, size_t bytes);
-void taskio_default_free(void* data, void* ptr);
-void* taskio_default_data();
-
 #endif // TASKIO_ALLOC_GUARD_HEADER

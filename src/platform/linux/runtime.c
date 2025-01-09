@@ -11,8 +11,6 @@
 
 #include "runtime_platform.h"
 
-static __thread uint64_t next_handle_id = 1;
-
 static void _wheel_setup(struct taskio_runtime*);
 static int worker_run(void* arg);
 
@@ -87,8 +85,6 @@ void taskio_runtime_drop(struct taskio_runtime* runtime) {
 
 struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct taskio_future* future,
                                           size_t future_size, size_t out_size) {
-    uint64_t handle_id = next_handle_id++;
-
     struct taskio_task* task =
         runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_task) + future_size + out_size);
 
@@ -119,7 +115,6 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
     task_add_event_loop(task);
 
     return (struct taskio_handle){
-        .id = handle_id,
         .task = task,
     };
 }
@@ -148,7 +143,6 @@ struct taskio_handle taskio_handle_clone(struct taskio_handle* handle) {
     task->counter += 1;
 
     return (struct taskio_handle){
-        .id = handle->id,
         .task = handle->task,
     };
 }
@@ -157,7 +151,6 @@ void taskio_handle_drop(struct taskio_handle* handle) {
     struct taskio_task* task = handle->task;
     task_drop(task);
 
-    handle->id = 0;
     handle->task = NULL;
 }
 
@@ -340,7 +333,7 @@ static void _wheel_setup(struct taskio_runtime* runtime) {
     size_t lengths[WHEEL_LEVEL_SIZE] = {10, 10, 10, 60, 60, 24, 365, 4};
 
     for (size_t i = 0; i < WHEEL_LEVEL_SIZE; i++) {
-        wheels[i].allocator = runtime->allocator;
+        wheels[i].allocator = &runtime->allocator;
 
         wheels[i].tick = 0;
         wheels[i].id = i;

@@ -16,7 +16,7 @@ typedef void (*taskio_wheel_expiry_handler)(struct taskio_wheel_timer* wheel_tim
                                             bool has_remaining_ticks);
 
 struct taskio_timer {
-    struct taskio_allocator allocator;
+    struct taskio_allocator* allocator;
 
     atomic_size_t counter;
     uint64_t expiry_time;
@@ -30,7 +30,7 @@ struct taskio_timer {
 };
 
 struct taskio_wheel_timer {
-    struct taskio_allocator allocator;
+    struct taskio_allocator* allocator;
 
     uint64_t tick;
 

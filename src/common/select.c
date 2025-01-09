@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include "../alloc_ext.h"
 #include "../common_ext.h"
 
 static void _on_ready(struct taskio_join_ext_env* env, struct taskio_future* future, size_t index);
@@ -14,6 +15,10 @@ struct taskio_select_node {
 
 future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, void* out, size_t len,
                                                ...) {
+    if (allocator == NULL) {
+        allocator = taskio_default_allocator_ref();
+    }
+
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);
 
     va_list args;
@@ -44,7 +49,7 @@ future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocato
 static void _on_ready(struct taskio_join_ext_env* inner_env, [[maybe_unused]] struct taskio_future* future,
                       size_t index) {
     struct taskio_select_env* env = (struct taskio_select_env*)inner_env;
-    struct taskio_allocator* allocator = &inner_env->allocator;
+    struct taskio_allocator* allocator = inner_env->allocator;
 
     struct taskio_select_node* select_node = allocator->alloc(allocator->data, sizeof(struct taskio_select_node));
     select_node->index = index;
@@ -84,7 +89,7 @@ static bool _on_finish(struct taskio_join_ext_env* inner_env, size_t* out_index)
 static void _on_cleanup(struct taskio_join_ext_env* inner_env) {
     struct taskio_select_env* env = (struct taskio_select_env*)inner_env;
 
-    struct taskio_allocator* allocator = &env->inner.allocator;
+    struct taskio_allocator* allocator = env->inner.allocator;
 
     struct taskio_select_node* select_node = env->head;
     while (select_node) {

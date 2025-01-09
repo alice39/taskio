@@ -20,7 +20,7 @@ struct taskio_semaphore_node {
 struct taskio_semaphore {
     atomic_size_t counter;
 
-    struct taskio_allocator allocator;
+    struct taskio_allocator* allocator;
 
     mtx_t blocking_wake_mtx;
     cnd_t blocking_wake_cnd;

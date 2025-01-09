@@ -4,10 +4,9 @@
 
 static void _join_wake(struct taskio_waker* waker);
 
-future_fn_impl(size_t, taskio_join_ext)(struct taskio_allocator* allocator_ref, void* out, size_t len,
+future_fn_impl(size_t, taskio_join_ext)(struct taskio_allocator* allocator, void* out, size_t len,
                                         struct taskio_join_task* head, taskio_join_on_ready on_ready,
                                         taskio_join_on_finish on_finish, taskio_join_on_cleanup on_cleanup) {
-    struct taskio_allocator allocator = *allocator_ref;
     struct taskio_join_task* poll_head = len >= 1 ? &head[0] : NULL;
     struct taskio_join_task* poll_tail = len >= 1 ? &head[len - 1] : NULL;
 
@@ -16,7 +15,6 @@ future_fn_impl(size_t, taskio_join_ext)(struct taskio_allocator* allocator_ref, 
 }
 
 async_fn(size_t, taskio_join_ext) {
-
     async_cleanup() {
         taskio_join_on_cleanup on_cleanup = async_env(on_cleanup);
         if (on_cleanup) {
@@ -37,7 +35,7 @@ async_fn(size_t, taskio_join_ext) {
             pending_len -= 1;
         }
 
-        async_env(allocator).free(async_env(allocator).data, head);
+        async_env(allocator)->free(async_env(allocator)->data, head);
     }
 
     async_scope_while(true) {

@@ -1,8 +1,12 @@
 #include <stdarg.h>
 
+#include "../alloc_ext.h"
 #include "../common_ext.h"
 
 future_fn_impl_redirect(void, taskio_join)(struct taskio_allocator* allocator, void* out, size_t len, ...) {
+    if (allocator == NULL) {
+        allocator = taskio_default_allocator_ref();
+    }
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);
 
     va_list args;
