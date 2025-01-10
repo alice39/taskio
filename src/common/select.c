@@ -1,7 +1,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "../alloc_ext.h"
+#include <taskio/alloc.h>
+
 #include "../common_ext.h"
 
 static void _on_ready(struct taskio_join_ext_env* env, struct taskio_future* future, size_t index);
@@ -16,7 +17,7 @@ struct taskio_select_node {
 future_fn_impl_redirect(size_t, taskio_select)(struct taskio_allocator* allocator, bool biased, void* out, size_t len,
                                                ...) {
     if (allocator == NULL) {
-        allocator = taskio_default_allocator_ref();
+        allocator = taskio_default_allocator();
     }
 
     struct taskio_join_task* head = allocator->alloc(allocator->data, sizeof(struct taskio_join_task) * len);

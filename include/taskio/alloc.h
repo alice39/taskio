@@ -10,6 +10,7 @@ struct taskio_allocator {
     void* data;
 };
 
-struct taskio_allocator taskio_default_allocator();
+void taskio_initialize_allocator(struct taskio_allocator* allocator);
+struct taskio_allocator* taskio_default_allocator();
 
 #endif // TASKIO_ALLOC_GUARD_HEADER

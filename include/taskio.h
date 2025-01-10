@@ -1,6 +1,7 @@
 #ifndef TASKIO_GUARD_HEADER
 #define TASKIO_GUARD_HEADER
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <taskio/async.h>
@@ -9,6 +10,10 @@
 #define taskio_main_env __taskio_async_main_env
 
 #define taskio_main(...)                                                                                               \
+    static void* _taskio_alloc([[maybe_unused]] void* data, size_t bytes) { return malloc(bytes); }                    \
+                                                                                                                       \
+    static void _taskio_free([[maybe_unused]] void* data, void* ptr) { free(ptr); }                                    \
+                                                                                                                       \
     static_future_fn(int, __taskio_async_main)(int argc, char** args) {                                                \
         return_future_fn(int, __taskio_async_main, argc, args);                                                        \
     }                                                                                                                  \
@@ -28,15 +33,20 @@
                                                                                                                        \
         struct __taskio_async_main_runtime_config config = {__VA_ARGS__};                                              \
         if (memcmp(&config.allocator, &(struct taskio_allocator){}, sizeof(struct taskio_allocator)) == 0) {           \
-            config.allocator = taskio_default_allocator();                                                             \
+            config.allocator.alloc = _taskio_alloc;                                                                    \
+            config.allocator.free = _taskio_free;                                                                      \
+            config.allocator.data = NULL;                                                                              \
         }                                                                                                              \
         if (config.worker_size == 0) {                                                                                 \
             config.worker_size = TASKIO_SINGLE_THREADED;                                                               \
         }                                                                                                              \
                                                                                                                        \
+        taskio_initialize_allocator(&config.allocator);                                                                \
+        struct taskio_allocator* allocator = taskio_default_allocator();                                               \
+                                                                                                                       \
         taskio_stack_runtime stack_rt = {};                                                                            \
         struct taskio_runtime* rt = (struct taskio_runtime*)stack_rt;                                                  \
-        taskio_runtime_init(rt, config.worker_size, &config.allocator);                                                \
+        taskio_runtime_init(rt, config.worker_size, allocator);                                                        \
                                                                                                                        \
         int main_result = 0;                                                                                           \
                                                                                                                        \
@@ -45,10 +55,10 @@
             taskio_runtime_block_on(rt, &future.inner, &main_result);                                                  \
         } else {                                                                                                       \
             struct __taskio_async_main_future* future =                                                                \
-                config.allocator.alloc(config.allocator.data, sizeof(struct __taskio_async_main_future));              \
+                allocator->alloc(allocator->data, sizeof(struct __taskio_async_main_future));                          \
             __taskio_async_main_init(future, argc, args);                                                              \
             taskio_runtime_block_on(rt, &future->inner, &main_result);                                                 \
-            config.allocator.free(config.allocator.data, future);                                                      \
+            allocator->free(allocator->data, future);                                                                  \
         }                                                                                                              \
                                                                                                                        \
         taskio_runtime_drop(rt);                                                                                       \

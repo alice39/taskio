@@ -2,9 +2,8 @@
 #include <stdio.h>
 #endif // TASKIO_TRACING
 
+#include <taskio/alloc.h>
 #include <taskio/sync/semaphore.h>
-
-#include "../alloc_ext.h"
 
 #define SEMAPHORE_NODE_MASK (0b000011)
 #define SEMAPHORE_NODE_PLAIN (0b010000)
@@ -17,7 +16,7 @@ static inline void _node_drop(struct taskio_allocator* allocator, struct taskio_
 
 void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, struct taskio_allocator* allocator,
                                       size_t permits) {
-    semaphore->allocator = allocator ? allocator : taskio_default_allocator_ref();
+    semaphore->allocator = allocator ? allocator : taskio_default_allocator();
 
     mtx_init(&semaphore->mtx_guard, mtx_plain);
     cnd_init(&semaphore->cnd_guard);
