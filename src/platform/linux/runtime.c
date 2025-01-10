@@ -332,6 +332,8 @@ static void _wheel_setup(struct taskio_runtime* runtime) {
     uint64_t resolutions[WHEEL_LEVEL_SIZE] = {1, 10, 100, 1000, 60000, 3600000, 86400000, 31536000000};
     size_t lengths[WHEEL_LEVEL_SIZE] = {10, 10, 10, 60, 60, 24, 365, 4};
 
+    size_t buckets_start = 0;
+
     for (size_t i = 0; i < WHEEL_LEVEL_SIZE; i++) {
         wheels[i].allocator = &runtime->allocator;
 
@@ -341,7 +343,8 @@ static void _wheel_setup(struct taskio_runtime* runtime) {
         wheels[i].resolution = resolutions[i];
 
         wheels[i].wheel_size = lengths[i];
-        wheels[i].timer_buckets = buckets;
+        wheels[i].timer_buckets = buckets + buckets_start;
+        buckets_start += lengths[i];
 
         wheels[i].loop_handler = _wheel_loop;
         wheels[i].expiry_handler = _wheel_expiry;
