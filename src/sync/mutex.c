@@ -1,4 +1,4 @@
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
 #include <stdio.h>
 #endif
 
@@ -45,11 +45,11 @@ async_fn(bool, taskio_mutex_timedlock) {
 void taskio_mutex_blocking_lock(struct taskio_mutex* mutex) { taskio_semaphore_blocking_wait(&mutex->sem); }
 
 void taskio_mutex_unlock(struct taskio_mutex* mutex) {
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
     if (taskio_semaphore_getvalue(&mutex->sem) > 0) {
         fprintf(stderr, "taskio-tracing: mutex was unlocked twice\n");
     }
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
     taskio_semaphore_signal(&mutex->sem);
 }

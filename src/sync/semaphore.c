@@ -1,6 +1,6 @@
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
 #include <stdio.h>
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
 #include <taskio/alloc.h>
 #include <taskio/sync/semaphore.h>
@@ -42,11 +42,11 @@ void taskio_semaphore_drop(struct taskio_semaphore* semaphore) {
         node = next;
     }
 
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
     if (semaphore->blocking_wake_wait > 0) {
         fprintf(stderr, "taskio-tracing: semaphore dropped before threads wake up on taskio_semaphore_blocking_wait\n");
     }
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
     cnd_destroy(&semaphore->cnd_guard);
     mtx_destroy(&semaphore->mtx_guard);
@@ -182,13 +182,13 @@ static inline void _node_drop(struct taskio_allocator* allocator, struct taskio_
 
     bool is_timed = (counter_with_flags & SEMAPHORE_NODE_TIMED) != 0;
 
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
     bool is_plain = (counter_with_flags & SEMAPHORE_NODE_PLAIN) != 0;
 
     if (!will_wake && is_plain && counter != 1) {
         fprintf(stderr, "taskio-tracing: semaphore dropped before futures wake up on taskio_semaphore_wait\n");
     }
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
     if (counter == 1 || !(will_wake || is_timed)) {
         allocator->free(allocator->data, node);

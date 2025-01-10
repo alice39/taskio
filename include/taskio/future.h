@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
 #include <stdio.h>
 #define TASKIO_TRACE_UNDEFINED(future)                                                                                 \
     fprintf(stderr,                                                                                                    \
@@ -13,7 +13,7 @@
             (future)->trace.name, (future)->trace.file, (future)->trace.line, (future)->trace.name)
 #else
 #define TASKIO_TRACE_UNDEFINED(future)
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
 struct taskio_waker {
     void (*wake)(struct taskio_waker* waker);
@@ -32,7 +32,7 @@ enum taskio_future_poll {
     taskio_future_ready,
 };
 
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
 
 struct taskio_future_trace {
     const char* name;
@@ -40,12 +40,12 @@ struct taskio_future_trace {
     unsigned long line;
 };
 
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
 struct taskio_future {
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
     struct taskio_future_trace trace;
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
     void (*poll)(struct taskio_future*, struct taskio_future_context*, enum taskio_future_poll*, void*);
 

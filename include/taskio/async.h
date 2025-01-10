@@ -101,7 +101,7 @@
         .inner = return_future_fn_inner_obj(T, name), .env = (struct name##_env){FUTURE_ENV_INIT(__VA_ARGS__)},        \
     }
 
-#ifdef TASKIO_TRACING
+#ifdef TASKIO_TRACING_FEATURE
 #define return_future_fn_inner_obj(T, future_name)                                                                     \
     (struct taskio_future) {                                                                                           \
         .trace =                                                                                                       \
@@ -115,7 +115,7 @@
 #else
 #define return_future_fn_inner_obj(T, future_name)                                                                     \
     (struct taskio_future) { .poll = future_name##_poll, .await_future = NULL, .await_out = NULL, .counter = 0, }
-#endif // TASKIO_TRACING
+#endif // TASKIO_TRACING_FEATURE
 
 #define return_future_fn(T, name, ...) return return_future_fn_obj(T, name, __VA_ARGS__)
 

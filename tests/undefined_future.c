@@ -22,8 +22,8 @@ struct taskio_main_env {
 
 taskio_main() {
     async_scope() {
-#ifndef TASKIO_TRACING
-        fprintf(stderr, "main: TASKIO_TRACING feature has not been enabled\n");
+#ifndef TASKIO_TRACING_FEATURE
+        fprintf(stderr, "main: TASKIO_TRACING_FEATURE feature has not been enabled\n");
 #endif
 
         printf("main: waiting for foo\n");
