@@ -15,7 +15,7 @@ struct taskio_timer* taskio_runtime_add_timer(struct taskio_runtime* runtime, ui
     if (timer != NULL && atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1) == 0) {
         timerfd_settime(runtime->timer_fd, 0,
                         &(struct itimerspec){
-                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
                             .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
                         },
                         NULL);
@@ -40,7 +40,7 @@ void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio
     if (!is_rescheduling && atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1) == 0) {
         timerfd_settime(runtime->timer_fd, 0,
                         &(struct itimerspec){
-                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
                             .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
                         },
                         NULL);
