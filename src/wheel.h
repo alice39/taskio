@@ -1,7 +1,10 @@
 #ifndef TASKIO_WHEEL_GUARD_HEADER
 #define TASKIO_WHEEL_GUARD_HEADER
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
 #include <stdatomic.h>
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -18,7 +21,12 @@ typedef void (*taskio_wheel_expiry_handler)(struct taskio_wheel_timer* wheel_tim
 struct taskio_timer {
     struct taskio_allocator* allocator;
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
     atomic_size_t counter;
+#else
+    size_t counter;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
     uint64_t expiry_time;
 
     struct taskio_timer** bucket; // NULL if fired or aborted

@@ -1,7 +1,10 @@
 #ifndef TASKIO_RUNTIME_PLATFORM_GUARD_HEADER
 #define TASKIO_RUNTIME_PLATFORM_GUARD_HEADER
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
 #include <stdatomic.h>
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
 #include <threads.h>
 
 #include "../../runtime_ext.h"
@@ -29,7 +32,11 @@ struct taskio_task_out {
 };
 
 struct taskio_task {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
     atomic_size_t counter;
+#else
+    size_t counter;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
 
     enum taskio_task_status status;
 
@@ -46,8 +53,12 @@ struct taskio_task {
 };
 
 struct taskio_hierarchy_wheel_timer {
-    // count how many timers there are in total
+// count how many timers there are in total
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
     atomic_size_t timer_len;
+#else
+    size_t timer_len;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
 
     // bucket size is measured by each wheel len:
     // 10 + 10 + 10 + 60 + 60 + 24 + 365 + 4

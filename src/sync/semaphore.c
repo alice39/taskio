@@ -177,7 +177,12 @@ static inline void _signal_async(struct taskio_semaphore* semaphore) {
 static inline void _signal_sync(struct taskio_semaphore* semaphore) { cnd_signal(&semaphore->cnd_guard); }
 
 static inline void _node_drop(struct taskio_allocator* allocator, struct taskio_semaphore_node* node, bool will_wake) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
     size_t counter_with_flags = atomic_fetch_sub(&node->counter, 1);
+#else
+    size_t counter_with_flags = node->counter--;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
     size_t counter = counter_with_flags & SEMAPHORE_NODE_MASK;
 
     bool is_timed = (counter_with_flags & SEMAPHORE_NODE_TIMED) != 0;

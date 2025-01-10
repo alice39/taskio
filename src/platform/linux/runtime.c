@@ -360,8 +360,14 @@ static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_
     if (has_remaining_ticks) {
         taskio_runtime_add_timer_from(runtime, timer, true);
     } else {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+        size_t timer_len = atomic_fetch_sub(&runtime->hierarchy_wheel.timer_len, 1);
+#else
+        size_t timer_len = runtime->hierarchy_wheel.timer_len--;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
         // disarms the timer when there is no timers in the wheels
-        if (atomic_fetch_sub(&runtime->hierarchy_wheel.timer_len, 1) == 1) {
+        if (timer_len == 1) {
             timerfd_settime(runtime->timer_fd, 0,
                             &(struct itimerspec){
                                 .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 0},
@@ -401,7 +407,13 @@ static void task_wake(struct taskio_waker* waker) {
 }
 
 static void task_drop(struct taskio_task* task) {
-    if (atomic_fetch_sub(&task->counter, 1) == 1) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    size_t counter = atomic_fetch_sub(&task->counter, 1);
+#else
+    size_t counter = task->counter--;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
+    if (counter == 1) {
         task->runtime->allocator.free(task->runtime->allocator.data, task);
     }
 }

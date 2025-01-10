@@ -12,13 +12,21 @@ struct taskio_timer* taskio_runtime_add_timer(struct taskio_runtime* runtime, ui
     struct taskio_wheel_timer* wheel_timer = _find_wheel(runtime, delay);
     struct taskio_timer* timer = taskio_wheel_timer_add(wheel_timer, delay, handler, data);
 
-    if (timer != NULL && atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1) == 0) {
-        timerfd_settime(runtime->timer_fd, 0,
-                        &(struct itimerspec){
-                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
-                            .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
-                        },
-                        NULL);
+    if (timer) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+        size_t timer_len = atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1);
+#else
+        size_t timer_len = runtime->hierarchy_wheel.timer_len++;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
+        if (timer_len == 0) {
+            timerfd_settime(runtime->timer_fd, 0,
+                            &(struct itimerspec){
+                                .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
+                                .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                            },
+                            NULL);
+        }
     }
 
     return timer;
@@ -37,13 +45,21 @@ void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio
     uint64_t delay = timer->expiry_time - time;
     struct taskio_wheel_timer* wheel_timer = _find_wheel(runtime, delay);
 
-    if (!is_rescheduling && atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1) == 0) {
-        timerfd_settime(runtime->timer_fd, 0,
-                        &(struct itimerspec){
-                            .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
-                            .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
-                        },
-                        NULL);
+    if (!is_rescheduling) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+        size_t timer_len = atomic_fetch_add(&runtime->hierarchy_wheel.timer_len, 1);
+#else
+        size_t timer_len = runtime->hierarchy_wheel.timer_len++;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
+        if (timer_len == 0) {
+            timerfd_settime(runtime->timer_fd, 0,
+                            &(struct itimerspec){
+                                .it_value = (struct timespec){.tv_sec = 0, .tv_nsec = 1},
+                                .it_interval = (struct timespec){.tv_sec = 0, .tv_nsec = 1000000},
+                            },
+                            NULL);
+        }
     }
 
     taskio_wheel_timer_add_from(wheel_timer, timer);

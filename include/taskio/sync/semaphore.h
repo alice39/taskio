@@ -1,7 +1,10 @@
 #ifndef TASKIO_SYNC_SEMAPHORE_GUARD_HEADER
 #define TASKIO_SYNC_SEMAPHORE_GUARD_HEADER
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
 #include <stdatomic.h>
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
 #include <stdint.h>
 #include <threads.h>
 
@@ -10,7 +13,11 @@
 #include <taskio/common.h>
 
 struct taskio_semaphore_node {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
     atomic_size_t counter;
+#else
+    size_t counter;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
 
     struct taskio_waker waker;
 

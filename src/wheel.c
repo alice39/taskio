@@ -116,7 +116,13 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
 void taskio_timer_clone(struct taskio_timer* timer) { timer->counter++; }
 
 void taskio_timer_drop(struct taskio_timer* timer) {
-    if (atomic_fetch_sub(&timer->counter, 1) == 1) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    size_t counter = atomic_fetch_sub(&timer->counter, 1);
+#else
+    size_t counter = timer->counter--;
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
+    if (counter == 1) {
         timer->allocator->free(timer->allocator->data, timer);
     }
 }
