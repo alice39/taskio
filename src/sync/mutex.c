@@ -7,7 +7,7 @@
 void taskio_mutex_init(struct taskio_mutex* mutex) { taskio_semaphore_init(&mutex->sem, 1); }
 
 void taskio_mutex_init_with_alloc(struct taskio_mutex* mutex, struct taskio_allocator* allocator) {
-    taskio_semaphore_init_with_alloc(&mutex->sem, 1, allocator);
+    taskio_semaphore_init_with_alloc(&mutex->sem, allocator, 1);
 }
 
 void taskio_mutex_drop(struct taskio_mutex* mutex) { taskio_semaphore_drop(&mutex->sem); }

@@ -11,6 +11,7 @@
 
 struct taskio_semaphore_node {
     atomic_size_t counter;
+
     struct taskio_waker waker;
 
     struct taskio_semaphore_node* back;
@@ -18,24 +19,23 @@ struct taskio_semaphore_node {
 };
 
 struct taskio_semaphore {
-    atomic_size_t counter;
-
     struct taskio_allocator* allocator;
 
-    mtx_t blocking_wake_mtx;
-    cnd_t blocking_wake_cnd;
-    size_t blocking_wake_wait;
-    size_t blocking_wake_signal;
-    size_t blocking_wake_priority;
+    mtx_t mtx_guard;
+    cnd_t cnd_guard;
 
-    mtx_t wake_guard;
+    size_t counter;
+    size_t priority;
+
+    size_t blocking_wake_wait;
+
     struct taskio_semaphore_node* wake_queue_head;
     struct taskio_semaphore_node* wake_queue_tail;
 };
 
 void taskio_semaphore_init(struct taskio_semaphore* semaphore, size_t permits);
-void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, size_t permits,
-                                      struct taskio_allocator* allocator);
+void taskio_semaphore_init_with_alloc(struct taskio_semaphore* semaphore, struct taskio_allocator* allocator,
+                                      size_t permits);
 void taskio_semaphore_drop(struct taskio_semaphore* semaphore);
 
 size_t taskio_semaphore_getvalue(struct taskio_semaphore* semaphore);
