@@ -7,6 +7,7 @@
 
 #include <threads.h>
 
+#include "../../collections/vec.h"
 #include "../../runtime_ext.h"
 #include "../../wheel.h"
 
@@ -62,7 +63,7 @@ struct taskio_hierarchy_wheel_timer {
 
     // bucket size is measured by each wheel len:
     // 10 + 10 + 10 + 60 + 60 + 24 + 365 + 4
-    struct taskio_timer* buckets[543];
+    taskio_vec(taskio_timer) buckets[543];
     struct taskio_wheel_timer wheels[WHEEL_LEVEL_SIZE];
 };
 

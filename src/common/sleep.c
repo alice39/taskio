@@ -7,23 +7,35 @@ static void taskio_sleep_handler(void*);
 future_fn_impl(void, taskio_sleep)(uint64_t ms) { return_future_fn(void, taskio_sleep, ms); }
 
 async_fn(void, taskio_sleep) {
+    struct taskio_timer_handle handle = {
+        .id = async_env(timer_id),
+        .expiry_time = async_env(timer_expiry_time),
+    };
+
     async_cleanup() {
-        struct taskio_timer* timer = async_env(timer);
-        if (timer) {
-            taskio_timer_abort(timer);
+        if (taskio_timer_valid(&handle)) {
+            taskio_runtime_timer_abort(async_env(runtime), &handle);
         }
     }
 
     async_scope() {
-        struct taskio_waker* waker = &async_env(waker);
-        *waker = __TASKIO_FUTURE_CTX->waker;
+        async_env(waker) = __TASKIO_FUTURE_CTX->waker;
+        async_env(runtime) = __TASKIO_FUTURE_CTX->runtime;
 
-        struct taskio_runtime* runtime = __TASKIO_FUTURE_CTX->runtime;
-        async_env(timer) = taskio_runtime_add_timer(runtime, async_env(ms), taskio_sleep_handler, waker);
+        handle = taskio_runtime_add_timer(async_env(runtime), async_env(ms), taskio_sleep_handler, &async_env(waker));
+
+        async_env(timer_id) = handle.id;
+        async_env(timer_expiry_time) = handle.expiry_time;
+
         suspended_yield();
     }
 
-    async_scope() { async_return(); }
+    async_scope() {
+        async_env(timer_id) = 0;
+        async_env(timer_expiry_time) = 0;
+
+        async_return();
+    }
 }
 
 static void taskio_sleep_handler(void* data) {

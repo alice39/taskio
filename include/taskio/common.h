@@ -24,7 +24,9 @@ struct taskio_sleep_env {
     uint64_t ms;
     struct taskio_waker waker;
 
-    void* timer;
+    void* runtime;
+    uint64_t timer_id;
+    uint64_t timer_expiry_time;
 };
 
 struct taskio_join_ext_env;

@@ -325,7 +325,7 @@ static int worker_run(void* arg) {
 
 static void _wheel_setup(struct taskio_runtime* runtime) {
     struct taskio_wheel_timer* wheels = runtime->hierarchy_wheel.wheels;
-    struct taskio_timer** buckets = runtime->hierarchy_wheel.buckets;
+    taskio_vec(taskio_timer)* buckets = runtime->hierarchy_wheel.buckets;
 
     runtime->hierarchy_wheel.timer_len = 0;
 

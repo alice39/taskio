@@ -27,7 +27,7 @@
         taskio_handle_drop(&__taskio_handle);                                                                          \
     }
 
-typedef char taskio_stack_runtime[6 * 1024];
+typedef char taskio_stack_runtime[14456];
 
 struct taskio_runtime;
 
