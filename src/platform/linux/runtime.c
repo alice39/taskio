@@ -13,6 +13,7 @@
 
 static void _wheel_setup(struct taskio_runtime*);
 static int worker_run(void* arg);
+static int blocking_worker_run(void* arg);
 
 static void _wheel_loop(struct taskio_wheel_timer* wheel_timer);
 static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_timer* timer, bool has_remaining_ticks);
@@ -20,7 +21,9 @@ static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_
 static void task_add_event_loop(struct taskio_task* task);
 static void task_wake(struct taskio_waker* waker);
 
-static void task_drop(struct taskio_task* task);
+static void task_wake_wakers(struct taskio_task_base* task);
+
+static void task_drop(struct taskio_task_base* task);
 
 size_t taskio_runtime_size() { return sizeof(struct taskio_runtime); }
 
@@ -48,6 +51,13 @@ void taskio_runtime_init(struct taskio_runtime* runtime, size_t worker_size, str
         worker->task = NULL;
         worker->task_out = NULL;
     }
+
+    sem_init(&runtime->blocking_sem, 0, 0);
+
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_init(&runtime->poll_guard, mtx_plain);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_init(&runtime->blocking_guard, mtx_plain);
 
     runtime->event_fd = eventfd(0, 0);
     runtime->timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
@@ -78,6 +88,13 @@ void taskio_runtime_drop(struct taskio_runtime* runtime) {
     close(runtime->timer_fd);
     close(runtime->epoll_fd);
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_destroy(&runtime->poll_guard);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_destroy(&runtime->blocking_guard);
+
+    sem_destroy(&runtime->blocking_sem);
+
     for (size_t i = 0; i < 8; i++) {
         taskio_wheel_timer_drop(&runtime->hierarchy_wheel.wheels[i]);
     }
@@ -89,18 +106,19 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
         runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_task) + future_size + out_size);
 
     // handled by the user and runtime
-    task->counter = 2;
+    task->base.counter = 2;
 
-    task->status = taskio_task_suspended;
+    task->base.blocking = false;
+    task->base.status = taskio_task_suspended;
 
-    task->runtime = runtime;
-    task->wake_on_ready_top = NULL;
+    task->base.runtime = runtime;
+    task->base.wake_on_ready_top = NULL;
 
-    task->out_size = out_size;
+    task->base.out_size = out_size;
     if (out_size == 0) {
-        task->out = NULL;
+        task->base.out = NULL;
     } else {
-        task->out = (void*)&task->raw_futures[future_size];
+        task->base.out = (void*)&task->raw_futures[future_size];
     }
 
     task->next = NULL;
@@ -115,19 +133,60 @@ struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct
     task_add_event_loop(task);
 
     return (struct taskio_handle){
-        .task = task,
+        .task = &task->base,
     };
 }
 
-struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtime, struct taskio_future* future,
-                                                   size_t future_size, size_t out_size) {
-    // FIXME: implement spawn blocking
-    (void)runtime;
-    (void)future;
-    (void)future_size;
-    (void)out_size;
+struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtime,
+                                                   void (*handler)(void* data, void* out), void* data,
+                                                   size_t out_size) {
+    struct taskio_blocking_task* task =
+        runtime->allocator.alloc(runtime->allocator.data, sizeof(struct taskio_blocking_task) + out_size);
 
-    return (struct taskio_handle){};
+    // handled by the user and runtime
+    task->base.counter = 2;
+
+    task->base.blocking = true;
+    task->base.status = taskio_task_suspended;
+
+    task->base.runtime = runtime;
+    task->base.wake_on_ready_top = NULL;
+
+    task->base.out_size = out_size;
+    if (out_size == 0) {
+        task->base.out = NULL;
+    } else {
+        task->base.out = (void*)&task->raw_out[0];
+    }
+
+    task->next = NULL;
+
+    task->handler = handler;
+    task->data = data;
+
+    mtx_lock(&runtime->blocking_guard);
+    if (runtime->blocking_tail == NULL) {
+        runtime->blocking_head = task;
+    } else {
+        runtime->blocking_tail->next = task;
+    }
+
+    runtime->blocking_tail = task;
+
+    sem_post(&runtime->blocking_sem);
+    mtx_unlock(&runtime->blocking_guard);
+
+    if (!runtime->blocking_initialized) {
+        runtime->blocking_initialized = true;
+
+        for (size_t i = 0; i < BLOCKING_WORKER_SIZE; i++) {
+            thrd_create(&runtime->blocking_workers[i].id, blocking_worker_run, runtime);
+        }
+    }
+
+    return (struct taskio_handle){
+        .task = &task->base,
+    };
 }
 
 void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_future* future, void* out) {
@@ -139,7 +198,7 @@ void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_futur
 }
 
 struct taskio_handle taskio_handle_clone(struct taskio_handle* handle) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     task->counter += 1;
 
     return (struct taskio_handle){
@@ -148,32 +207,37 @@ struct taskio_handle taskio_handle_clone(struct taskio_handle* handle) {
 }
 
 void taskio_handle_drop(struct taskio_handle* handle) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     task_drop(task);
 
     handle->task = NULL;
 }
 
 bool taskio_handle_is_aborted(struct taskio_handle* handle) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     return task->status == taskio_task_aborted;
 }
 
 bool taskio_handle_is_finished(struct taskio_handle* handle) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     return task->status == taskio_task_finished;
 }
 
 void taskio_handle_abort(struct taskio_handle* handle) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     switch (task->status) {
         case taskio_task_suspended: {
             task->status = taskio_task_aborted;
-            task_add_event_loop(task);
+
+            if (!task->blocking) {
+                task_add_event_loop((struct taskio_task*)task);
+            }
             break;
         }
         case taskio_task_scheduled: {
-            task->status = taskio_task_aborted;
+            if (!task->blocking) {
+                task->status = taskio_task_aborted;
+            }
         }
         case taskio_task_aborted:
         case taskio_task_finished: {
@@ -184,7 +248,7 @@ void taskio_handle_abort(struct taskio_handle* handle) {
 }
 
 void taskio_handle_join(struct taskio_handle* handle, struct taskio_waker* waker, void* out) {
-    struct taskio_task* task = handle->task;
+    struct taskio_task_base* task = handle->task;
     switch (task->status) {
         case taskio_task_suspended:
         case taskio_task_scheduled: {
@@ -228,6 +292,10 @@ static int worker_run(void* arg) {
                 eventfd_read(worker->runtime->event_fd, &event_out);
 
                 while (true) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+                    mtx_lock(&worker->runtime->poll_guard);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
                     struct taskio_task* task = worker->runtime->poll_head;
                     if (task == NULL) {
                         break;
@@ -238,18 +306,22 @@ static int worker_run(void* arg) {
                         worker->runtime->poll_tail = NULL;
                     }
 
-                    if (task->status == taskio_task_aborted) {
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+                    mtx_unlock(&worker->runtime->poll_guard);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
+
+                    if (task->base.status == taskio_task_aborted) {
                         __TASKIO_FUTURE_CLEANUP(task->future);
 
                         if (worker->task == task) {
                             running = false;
                         }
 
-                        task_drop(task);
+                        task_drop(&task->base);
                         continue;
                     }
 
-                    task->status = taskio_task_suspended;
+                    task->base.status = taskio_task_suspended;
                     task->next = NULL;
 
                     task->future->counter += 1;
@@ -264,7 +336,7 @@ static int worker_run(void* arg) {
                     };
 
                     enum taskio_future_poll poll = taskio_future_undefined;
-                    void* out = worker->task == task ? worker->task_out : task->out;
+                    void* out = worker->task == task ? worker->task_out : task->base.out;
                     task->future->poll(task->future, &context, &poll, out);
 
                     switch (poll) {
@@ -279,26 +351,15 @@ static int worker_run(void* arg) {
                         case taskio_future_ready: {
                             __TASKIO_FUTURE_CLEANUP(task->future);
 
-                            task->status = taskio_task_finished;
+                            task->base.status = taskio_task_finished;
 
-                            struct taskio_task_wake_node* wake_node = task->wake_on_ready_top;
-                            while (wake_node) {
-                                struct taskio_task_wake_node* next_wake_node = wake_node->next;
-
-                                if (wake_node->out) {
-                                    memcpy(wake_node->out, task->out, task->out_size);
-                                }
-                                wake_node->waker.wake(&wake_node->waker);
-
-                                worker->runtime->allocator.free(worker->runtime->allocator.data, wake_node);
-                                wake_node = next_wake_node;
-                            }
+                            task_wake_wakers(&task->base);
 
                             if (worker->task == task) {
                                 running = false;
                             }
 
-                            task_drop(task);
+                            task_drop(&task->base);
                             break;
                         }
                     }
@@ -318,6 +379,34 @@ static int worker_run(void* arg) {
                 }
             }
         }
+    }
+
+    return 0;
+}
+
+static int blocking_worker_run(void* arg) {
+    struct taskio_runtime* runtime = arg;
+
+    while (true) {
+        sem_wait(&runtime->blocking_sem);
+        mtx_lock(&runtime->blocking_guard);
+
+        struct taskio_blocking_task* task = runtime->blocking_head;
+        runtime->blocking_head = task->next;
+        if (runtime->blocking_head == NULL) {
+            runtime->blocking_tail = NULL;
+        }
+
+        mtx_unlock(&runtime->blocking_guard);
+
+        if (task->base.status != taskio_task_aborted) {
+            task->handler(task->data, task->base.out);
+            task->base.status = taskio_task_finished;
+
+            task_wake_wakers(&task->base);
+        }
+
+        task_drop(&task->base);
     }
 
     return 0;
@@ -382,14 +471,17 @@ static void _wheel_expiry(struct taskio_wheel_timer* wheel_timer, struct taskio_
 }
 
 static void task_add_event_loop(struct taskio_task* task) {
-    if (task->status == taskio_task_scheduled) {
+    if (task->base.status == taskio_task_scheduled) {
         return;
     }
 
-    task->status = taskio_task_scheduled;
+    task->base.status = taskio_task_scheduled;
 
-    struct taskio_runtime* runtime = task->runtime;
+    struct taskio_runtime* runtime = task->base.runtime;
 
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_lock(&worker->runtime->poll_guard);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
     if (runtime->poll_tail == NULL) {
         runtime->poll_head = task;
     } else {
@@ -397,6 +489,9 @@ static void task_add_event_loop(struct taskio_task* task) {
     }
 
     runtime->poll_tail = task;
+#ifdef TASKIO_RT_MULTI_THREADED_FEATURE
+    mtx_unlock(&worker->runtime->poll_guard);
+#endif // TASKIO_RT_MULTI_THREADED_FEATURE
 
     if (!runtime->poll_scheduled) {
         runtime->poll_scheduled = true;
@@ -409,9 +504,24 @@ static void task_wake(struct taskio_waker* waker) {
     task_add_event_loop(task);
 }
 
-static void task_drop(struct taskio_task* task) {
+static void task_wake_wakers(struct taskio_task_base* task) {
+    struct taskio_task_wake_node* wake_node = task->wake_on_ready_top;
+    while (wake_node) {
+        struct taskio_task_wake_node* next_wake_node = wake_node->next;
+
+        if (wake_node->out) {
+            memcpy(wake_node->out, task->out, task->out_size);
+        }
+        wake_node->waker.wake(&wake_node->waker);
+
+        task->runtime->allocator.free(task->runtime->allocator.data, wake_node);
+        wake_node = next_wake_node;
+    }
+}
+
+static void task_drop(struct taskio_task_base* task) {
 #ifdef TASKIO_RT_MULTI_THREADED_FEATURE
-    size_t counter = atomic_fetch_sub(&task->counter, 1);
+    size_t counter = atomic_fetch_sub(&task->base.counter, 1);
 #else
     size_t counter = task->counter--;
 #endif // TASKIO_RT_MULTI_THREADED_FEATURE

@@ -27,7 +27,17 @@
         taskio_handle_drop(&__taskio_handle);                                                                          \
     }
 
-typedef char taskio_stack_runtime[14456];
+#define taskio_spawn_blocking_with_handle(fn, data, ...)                                                               \
+    taskio_runtime_spawn_blocking(__TASKIO_FUTURE_CTX->runtime, fn, data,                                              \
+                                  __TASKIO_SPAWN##__VA_OPT__(_WITH)(__VA_ARGS__))
+
+#define taskio_spawn_blocking(fn, data)                                                                                \
+    {                                                                                                                  \
+        struct taskio_handle __taskio_handle = taskio_spawn_blocking_with_handle(fn, data);                            \
+        taskio_handle_drop(&__taskio_handle);                                                                          \
+    }
+
+typedef char taskio_stack_runtime[18640];
 
 struct taskio_runtime;
 
@@ -42,8 +52,8 @@ void taskio_runtime_drop(struct taskio_runtime* runtime);
 
 struct taskio_handle taskio_runtime_spawn(struct taskio_runtime* runtime, struct taskio_future* future,
                                           size_t future_size, size_t out_size);
-struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtime, struct taskio_future* future,
-                                                   size_t future_size, size_t out_size);
+struct taskio_handle taskio_runtime_spawn_blocking(struct taskio_runtime* runtime,
+                                                   void (*handler)(void* data, void* out), void* data, size_t out_size);
 
 void taskio_runtime_block_on(struct taskio_runtime* runtime, struct taskio_future* future, void* out);
 
