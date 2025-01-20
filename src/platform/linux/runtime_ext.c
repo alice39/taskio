@@ -24,6 +24,10 @@ struct taskio_timer_handle taskio_runtime_add_timer(struct taskio_runtime* runti
 
 void taskio_runtime_add_timer_from(struct taskio_runtime* runtime, struct taskio_timer* timer, bool is_rescheduling) {
     uint64_t time = runtime->hierarchy_wheel.wheels[0].tick * runtime->hierarchy_wheel.wheels[0].resolution;
+    if (is_rescheduling) {
+        time += runtime->hierarchy_wheel.wheels[0].resolution;
+    }
+
     if (time >= timer->expiry_time) {
         assert(!is_rescheduling && "rescheduling should not happen when timer has expired");
 
