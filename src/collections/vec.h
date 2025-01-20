@@ -32,6 +32,15 @@ enum taskio_predicate {
     (vec)->capacity = 0;                                                                                               \
     (vec)->data = NULL;
 
+#define taskio_vec_move(dst_vec, src_vec)                                                                              \
+    (dst_vec)->len = (src_vec)->len;                                                                                   \
+    (dst_vec)->capacity = (src_vec)->capacity;                                                                         \
+    (dst_vec)->data = (src_vec)->data;                                                                                 \
+                                                                                                                       \
+    (src_vec)->len = 0;                                                                                                \
+    (src_vec)->capacity = 0;                                                                                           \
+    (src_vec)->data = NULL;
+
 #define taskio_vec_destroy(vec, allocator, ...) taskio_vec_clear(vec, allocator, __VA_ARGS__)
 
 #define taskio_vec_empty(vec) (vec)->len == 0

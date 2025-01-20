@@ -69,10 +69,11 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
 
     size_t index = tick % wheel_timer->wheel_size;
 
-    taskio_vec(taskio_timer)* timers = &wheel_timer->timer_buckets[index];
+    taskio_vec(taskio_timer) timers;
+    taskio_vec_move(&timers, &wheel_timer->timer_buckets[index]);
 
-    for (size_t i = 0; i < taskio_vec_len(timers); i++) {
-        struct taskio_timer* timer = &taskio_vec_at(timers, i);
+    for (size_t i = 0; i < taskio_vec_len(&timers); i++) {
+        struct taskio_timer* timer = &taskio_vec_at(&timers, i);
 
         if (time >= timer->expiry_time) {
             timer->handler(timer->data);
@@ -84,7 +85,7 @@ void taskio_wheel_timer_tick(struct taskio_wheel_timer* wheel_timer) {
         }
     }
 
-    taskio_vec_clear(timers, wheel_timer->allocator);
+    taskio_vec_destroy(&timers, wheel_timer->allocator);
 
     if (wheel_timer->loop_handler && tick > 0 && index == 0) {
         wheel_timer->loop_handler(wheel_timer);
