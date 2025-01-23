@@ -17,7 +17,7 @@ async_fn(void, task) {
 
     async_scope() {
         printf("task %d: sleeping for %lu second\n", async_env(id), async_env(delay) / 1000);
-        await_fn(taskio_sleep, async_env(delay));
+        await_fn(taskio_sleep(async_env(delay)));
     }
 
     async_scope() {

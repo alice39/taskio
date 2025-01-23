@@ -95,7 +95,7 @@ taskio_main() {
         //
         // taskio_sleep is an async function which suspends
         // the async function for some milliseconds of granularity
-        await_fn(taskio_sleep, 1000);
+        await_fn(taskio_sleep(1000));
     }
 
     // once taskio_sleep(1000) finishes, our async main will

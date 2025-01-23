@@ -27,7 +27,13 @@
 
 #define async_void uint8_t
 
-#define future_env(...) __VA_OPT__(union {future_env_1(__VA_ARGS__)} __TASKIO_FUTURE_ENV)
+#define future_env(...)                                                                                                \
+    __VA_OPT__(union {                                                                                                 \
+        struct {                                                                                                       \
+            struct taskio_future inner;                                                                                \
+        } _taskio_base;                                                                                                \
+        future_env_1(__VA_ARGS__)                                                                                      \
+    } __TASKIO_FUTURE_ENV)
 
 #define future_env_1(name, ...)                                                                                        \
     struct name##_future name;                                                                                         \
@@ -221,19 +227,15 @@
         }                                                                                                              \
     }
 
-#define await_fn_get_as(as, fn, out, ...)                                                                              \
-    async_env(__TASKIO_FUTURE_ENV).as = fn(__VA_ARGS__);                                                               \
-    await_get(async_env(__TASKIO_FUTURE_ENV).as, out)
-
-#define await_fn_get(fn, out, ...)                                                                                     \
-    async_env(__TASKIO_FUTURE_ENV).fn = fn(__VA_ARGS__);                                                               \
-    await_get(async_env(__TASKIO_FUTURE_ENV).fn, out)
+#define await_fn_get(out, fn)                                                                                          \
+    static_assert(sizeof(async_env(__TASKIO_FUTURE_ENV)) >= sizeof(typeof(fn)),                                        \
+                  "taskio: missing " #fn " in future_env(...)");                                                       \
+    *((typeof(fn)*)&async_env(__TASKIO_FUTURE_ENV)) = fn;                                                              \
+    await_get(async_env(__TASKIO_FUTURE_ENV)._taskio_base, out)
 
 #define await(future) await_get(future, NULL)
 
-#define await_fn_as(as, fn, ...) await_fn_get_as(as, fn, NULL, __VA_ARGS__)
-
-#define await_fn(fn, ...) await_fn_get(fn, NULL, __VA_ARGS__)
+#define await_fn(fn) await_fn_get(NULL, fn)
 
 #define async_return(...)                                                                                              \
     *__TASKIO_FUTURE_POL = taskio_future_ready;                                                                        \

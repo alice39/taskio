@@ -27,7 +27,7 @@ taskio_main() {
 #endif
 
         printf("main: waiting for foo\n");
-        await_fn(foo);
+        await_fn(foo());
     }
 
     async_scope() {

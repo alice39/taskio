@@ -16,7 +16,7 @@ taskio_main() {
         printf("main: sleeping for 500ms (%lu)\n", async_env(i));
 
         async_env(i)++;
-        await_fn(taskio_sleep, 500);
+        await_fn(taskio_sleep(500));
     }
 
     async_scope_while(true) {
@@ -27,7 +27,7 @@ taskio_main() {
         printf("main: sleeping for 250ms (%lu)\n", async_env(i));
 
         async_env(i)++;
-        await_fn(taskio_sleep, 250);
+        await_fn(taskio_sleep(250));
     }
 
     async_scope() { async_return(); }

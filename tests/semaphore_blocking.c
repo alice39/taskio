@@ -22,12 +22,12 @@ async_fn(void, wait_task) {
 
     async_scope() {
         printf("task: wait\n");
-        await_fn(taskio_semaphore_wait, sem);
+        await_fn(taskio_semaphore_wait(sem));
     }
 
     async_scope() {
         printf("task: sleeping for %lu seconds.\n", delay / 1000);
-        await_fn(taskio_sleep, delay);
+        await_fn(taskio_sleep(delay));
     }
 
     async_scope() {
@@ -81,7 +81,7 @@ taskio_main() {
 
         async_tasks[0] = wait_task(sem, 3000);
         async_tasks[1] = wait_task(sem, 1000);
-        await_fn(taskio_join, NULL, &async_tasks[0], &async_tasks[1]);
+        await_fn(taskio_join(NULL, &async_tasks[0], &async_tasks[1]));
     }
 
     async_scope() {

@@ -44,7 +44,7 @@ taskio_main() {
 
     async_scope() {
         printf("main: after yield: %d\n", async_env(a));
-        await_fn(foo, 100);
+        await_fn(foo(100));
     }
 
     async_scope() { async_return(); }

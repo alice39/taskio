@@ -23,7 +23,7 @@ async_fn(void, wait_task) {
 
     async_scope() {
         printf("task: lock\n");
-        await_fn_get(taskio_mutex_timedlock, &async_env(result), mtx, 1000);
+        await_fn_get(&async_env(result), taskio_mutex_timedlock(mtx, 1000));
     }
 
     async_scope() {
@@ -33,7 +33,7 @@ async_fn(void, wait_task) {
         }
 
         printf("task: sleeping for %lu seconds.\n", delay / 1000);
-        await_fn(taskio_sleep, delay);
+        await_fn(taskio_sleep(delay));
     }
 
     async_scope() {
@@ -62,7 +62,7 @@ taskio_main() {
 
         async_env(wait_one) = wait_task(mtx, 4000);
         async_env(wait_two) = wait_task(mtx, 2000);
-        await_fn(taskio_join, NULL, &async_env(wait_one), &async_env(wait_two));
+        await_fn(taskio_join(NULL, &async_env(wait_one), &async_env(wait_two)));
     }
 
     async_scope() {

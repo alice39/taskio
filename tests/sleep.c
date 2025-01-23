@@ -13,7 +13,7 @@ struct taskio_main_env {
 taskio_main() {
     async_scope() {
         printf("main: sleeping for 1 second\n");
-        await_fn(taskio_sleep, 1000);
+        await_fn(taskio_sleep(1000));
     }
 
     async_scope() {

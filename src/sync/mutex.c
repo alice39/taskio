@@ -30,13 +30,13 @@ future_fn_impl(bool, taskio_mutex_timedlock)(struct taskio_mutex* mutex, uint64_
 }
 
 async_fn(void, taskio_mutex_lock) {
-    async_scope() { await_fn(taskio_semaphore_wait, &async_env(mutex)->sem); }
+    async_scope() { await_fn(taskio_semaphore_wait(&async_env(mutex)->sem)); }
     async_scope() { async_return(); }
 }
 
 async_fn(bool, taskio_mutex_timedlock) {
     async_scope() {
-        await_fn_get(taskio_semaphore_timedwait, &async_env(result), &async_env(mutex)->sem, async_env(delay));
+        await_fn_get(&async_env(result), taskio_semaphore_timedwait(&async_env(mutex)->sem, async_env(delay)));
     }
 
     async_scope() { async_return(async_env(result)); }

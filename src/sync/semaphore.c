@@ -119,8 +119,8 @@ async_fn(void, taskio_semaphore_wait) {
 
 async_fn(bool, taskio_semaphore_timedwait) {
     async_scope() {
-        await_fn_get_as(taskio_select, taskio_select_with, &async_env(result), async_env(semaphore)->allocator, true,
-                        NULL, &async_env(wait), &async_env(timeout));
+        await_fn_get(&async_env(result), taskio_select_with(async_env(semaphore)->allocator, true, NULL,
+                                                            &async_env(wait), &async_env(timeout)));
     }
 
     async_scope() { async_return(async_env(result) == 0); }

@@ -20,7 +20,7 @@ taskio_main() {
         async_env(f2) = taskio_sleep(1000);
 
         printf("main: select two futures\n");
-        await_fn_get(taskio_select, &async_env(select_index), NULL, &async_env(f1), &async_env(f2));
+        await_fn_get(&async_env(select_index), taskio_select(NULL, &async_env(f1), &async_env(f2)));
     }
 
     async_scope() {
